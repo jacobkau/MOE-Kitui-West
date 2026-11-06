@@ -8,6 +8,9 @@ export default function Collections() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Status & Loading states
   const [togglingId, setTogglingId] = useState(null);
   const [exportingId, setExportingId] = useState(null);
@@ -16,7 +19,7 @@ export default function Collections() {
   // Form builder state
   const [newCollection, setNewCollection] = useState({ name: '', term: '', description: '' });
   const [fields, setFields] = useState([
-    { key: 'total_boys', label: 'Total Boys', type: 'number', required: true, group: 'Enrollment' }
+    { key: 'general_total_boys', label: 'Total Boys', type: 'number', required: true, group: 'General' }
   ]);
 
   const fetchCollections = () => {
@@ -35,8 +38,12 @@ export default function Collections() {
   const updateField = (index, key, value) => {
     const updated = [...fields];
     updated[index][key] = value;
-    if (key === 'label') {
-      updated[index].key = value.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    
+    // FIX: Generate a unique key using BOTH group and label
+    if (key === 'label' || key === 'group') {
+      const groupStr = updated[index].group ? updated[index].group.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'general';
+      const labelStr = updated[index].label ? updated[index].label.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'field';
+      updated[index].key = `${groupStr}_${labelStr}`;
     }
     setFields(updated);
   };
@@ -56,7 +63,7 @@ export default function Collections() {
       await api.post('/collections', { ...newCollection, fields });
       setIsCreating(false);
       setNewCollection({ name: '', term: '', description: '' });
-      setFields([{ key: 'total_boys', label: 'Total Boys', type: 'number', required: true, group: 'Enrollment' }]);
+      setFields([{ key: 'general_total_boys', label: 'Total Boys', type: 'number', required: true, group: 'General' }]);
       fetchCollections();
     } catch (err) {
       alert('Failed to create form');
@@ -68,7 +75,7 @@ export default function Collections() {
   // --- Toggle Open/Close ---
   const toggleStatus = async (id, currentStatus) => {
     const action = currentStatus === 'open' ? 'CLOSE' : 'REOPEN';
-    if (!window.confirm(`Are you sure you want to ${action} this form? Schools will ${action === 'CLOSE' ? 'no longer be able to submit' : 'be able to submit again'}.`)) return;
+    if (!window.confirm(`Are you sure you want to ${action} this form?`)) return;
 
     setTogglingId(id);
     try {
@@ -115,9 +122,15 @@ export default function Collections() {
     }
   };
 
+  // Filter forms by search
+  const filteredCollections = collections.filter(col => 
+    col.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    col.term.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Data Collections</h1>
           <p className="text-sm text-gray-500 mt-1">Create forms and manage data submissions.</p>
@@ -131,6 +144,17 @@ export default function Collections() {
           </button>
           <Link to="/" className="text-gray-500 hover:text-gray-800 py-2 text-sm font-medium">← Dashboard</Link>
         </div>
+      </div>
+
+      {/* SEARCH BAR */}
+      <div className="mb-6">
+        <input 
+          type="text" 
+          placeholder="Search forms by name or term..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+        />
       </div>
 
       {/* CREATE FORM BUILDER */}
@@ -154,7 +178,7 @@ export default function Collections() {
             </div>
 
             <h3 className="font-bold text-gray-800 mb-2 border-b pb-2">Form Fields</h3>
-            <p className="text-xs text-gray-500 mb-4">Tip: Group fields together to create totals (e.g., group "Grade 1" for Grade 1 Boys and Grade 1 Girls).</p>
+            <p className="text-xs text-gray-500 mb-4">Tip: Group fields together to create sections (e.g., group "Grade 1" for Grade 1 Boys and Grade 1 Girls).</p>
             
             {fields.map((field, index) => (
               <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-center mb-3 bg-gray-50 p-3 rounded border">
@@ -167,7 +191,6 @@ export default function Collections() {
                   <input required type="text" placeholder="e.g. Total Girls" value={field.label} onChange={e => updateField(index, 'label', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
                 
-                {/* FIXED DATA TYPE TOGGLE */}
                 <div className="w-full md:w-auto">
                   <label className="text-xs font-semibold text-gray-600 block mb-1">Data Type</label>
                   <div className="flex bg-white rounded-md border overflow-hidden">
@@ -200,7 +223,7 @@ export default function Collections() {
       {/* COLLECTIONS LIST */}
       {loading ? <p>Loading forms...</p> : (
         <div className="grid gap-4">
-          {collections.map(col => {
+          {filteredCollections.map(col => {
             const publicLink = `${window.location.origin}/form/${col.publicSlug}`;
             return (
               <div key={col._id} className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
@@ -222,7 +245,7 @@ export default function Collections() {
                       disabled={deletingId === col._id}
                       className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-xs font-bold transition-colors disabled:opacity-50"
                     >
-                      {deletingId === col._id ? 'Deleting...' : 'Delete Form'}
+                      {deletingId === col._id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>
@@ -248,7 +271,7 @@ export default function Collections() {
               </div>
             );
           })}
-          {collections.length === 0 && <p className="text-gray-500">No forms created yet.</p>}
+          {filteredCollections.length === 0 && <p className="text-gray-500">No forms found matching your search.</p>}
         </div>
       )}
     </div>
