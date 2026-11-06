@@ -34,9 +34,32 @@ export default function Login() {
         </div>
         
         <div className="relative z-10 text-center max-w-md">
-          <div className="w-24 h-24 bg-white text-blue-900 rounded-full flex items-center justify-center mx-auto mb-8 font-serif font-bold text-3xl shadow-xl">
-            MOE
+          {/* Custom MOE-style Shield Logo (SVG) */}
+          <div className="w-32 h-32 mx-auto mb-8 drop-shadow-2xl">
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 100 120" 
+              className="w-full h-full"
+            >
+              {/* Shield Outline */}
+              <path d="M 50 5 L 90 20 L 90 60 C 90 90 50 115 50 115 C 50 115 10 90 10 60 L 10 20 Z" fill="white" stroke="#1e3a8a" strokeWidth="4" />
+              
+              {/* Inner Shield */}
+              <path d="M 50 12 L 84 25 L 84 60 C 84 85 50 107 50 107 C 50 107 16 85 16 60 L 16 25 Z" fill="#f8fafc" />
+              
+              {/* Kenyan Flag Colors (Black, Red, Green) */}
+              <path d="M 50 12 L 84 25 L 84 40 C 84 40 50 50 50 50 C 50 50 16 40 16 40 L 16 25 Z" fill="#000000" />
+              <path d="M 50 50 C 50 50 84 40 84 40 L 84 60 C 84 70 50 80 50 80 C 50 80 16 70 16 60 L 16 40 C 16 40 50 50 50 50 Z" fill="#dc2626" />
+              <path d="M 50 80 C 50 80 84 70 84 60 L 84 60 C 84 85 50 107 50 107 C 50 107 16 85 16 60 L 16 60 C 16 70 50 80 50 80 Z" fill="#16a34a" />
+              
+              {/* Book / Knowledge Symbol */}
+              <path d="M 35 45 C 35 45 45 40 50 45 C 55 40 65 45 65 45 L 65 75 C 65 75 55 70 50 75 C 45 70 35 75 35 75 Z" fill="white" stroke="#1e3a8a" strokeWidth="2" />
+              
+              {/* Star at top */}
+              <circle cx="50" cy="25" r="4" fill="#facc15" />
+            </svg>
           </div>
+          
           <h1 className="text-4xl font-bold mb-4">Kitui West Sub-County</h1>
           <p className="text-blue-200 text-lg">Ministry of Education Data Collection & Management Portal</p>
         </div>
