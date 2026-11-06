@@ -20,14 +20,22 @@ router.get("/excel/:collectionId", requireAuth, async (req, res) => {
     // Define Base Columns
     const columns = [
       { header: "School Code", key: "code", width: 15 },
-      { header: "School Name", key: "name", width: 30 },
-      { header: "Category", key: "category", width: 20 },
+      { header: "School Name", key: "name", width: 35 },
+      { header: "Category", key: "category", width: 15 },
       { header: "Zone", key: "zone", width: 15 },
     ];
 
-    // Add dynamic fields from the form
+    // Add dynamic fields from the form, appending the Group Name to the Header
     collection.fields.forEach(field => {
-      columns.push({ header: field.label, key: field.key, width: 15 });
+      const headerName = field.group && field.group !== 'General' 
+        ? `${field.group} - ${field.label}` 
+        : field.label;
+
+      columns.push({ 
+        header: headerName, 
+        key: field.key, 
+        width: 20 
+      });
     });
 
     // Add columns for the auto-calculated totals
@@ -39,11 +47,11 @@ router.get("/excel/:collectionId", requireAuth, async (req, res) => {
     }, {});
 
     Object.keys(groupedFields).forEach(groupName => {
-      // Check if this group has number fields
       const hasNumbers = groupedFields[groupName].some(f => f.type === 'number');
       if (hasNumbers) {
         const totalKey = `total_for_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-        columns.push({ header: `${groupName} Total`, key: totalKey, width: 15 });
+        const headerName = groupName !== 'General' ? `${groupName} - Auto Total` : `Total`;
+        columns.push({ header: headerName, key: totalKey, width: 20 });
       }
     });
 
@@ -74,8 +82,9 @@ router.get("/excel/:collectionId", requireAuth, async (req, res) => {
       worksheet.addRow(rowData);
     });
 
-    // Formatting
+    // Formatting Header
     worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } }; // Light gray header
 
     // Send file
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
