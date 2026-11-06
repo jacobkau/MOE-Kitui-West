@@ -11,7 +11,7 @@ export default function Schools() {
   const [previewData, setPreviewData] = useState(null);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState('');
-  const [showImport, setShowImport] = useState(false); // Toggle for import section
+  const [showImport, setShowImport] = useState(false); 
 
   // Edit state
   const [editingSchool, setEditingSchool] = useState(null);
@@ -109,7 +109,7 @@ export default function Schools() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Schools Registry</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage the 123 registered schools across the sub-county.</p>
+          <p className="text-sm text-gray-500 mt-1">Manage the registered schools across the sub-county.</p>
         </div>
         <div className="flex gap-2">
           <button 
