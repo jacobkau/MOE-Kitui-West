@@ -1,6 +1,7 @@
 import { Router } from "express";
 import crypto from "crypto";
 import Collection from "../models/Collection.js";
+import Submission from "../models/Submission.js"; // <-- NEEDED for the check route
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -63,13 +64,11 @@ router.patch("/:id/status", requireAuth, async (req, res) => {
   }
 });
 
-
-// 6. Update an existing Collection (Form)
+// 5. Update an existing Collection (Form)
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { name, term, description, fields } = req.body;
     
-    // We do NOT update the publicSlug so the link remains the same
     const collection = await Collection.findByIdAndUpdate(
       req.params.id,
       { name, term, description, fields },
@@ -82,7 +81,7 @@ router.put("/:id", requireAuth, async (req, res) => {
   }
 });
 
-// 5. Delete a Collection
+// 6. Delete a Collection
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
     await Collection.findByIdAndDelete(req.params.id);
