@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const schoolSchema = new mongoose.Schema(
   {
-    code: { type: String, required: true, unique: true, trim: true },
+    code: { type: String, required: true, trim: true }, 
     name: { type: String, required: true, trim: true },
     category: { type: String, required: true }, 
     zone: { type: String, required: true },    
@@ -16,5 +16,6 @@ const schoolSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+schoolSchema.index({ name: 1, upnCode: 1, category: 1 }, { unique: true });
 
 export default mongoose.model("School", schoolSchema);
