@@ -6,6 +6,7 @@ import Collections from './pages/Collections';
 import Submissions from './pages/Submissions';
 import PublicForm from './pages/PublicForm';
 import Layout from './components/Layout'; 
+import ZonalDirectory from './pages/ZonalDirectory';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -22,6 +23,7 @@ export default function App() {
 
       {/* Protected Admin Routes */}
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/directory" element={<ProtectedRoute><ZonalDirectory /></ProtectedRoute>} />
       <Route path="/schools" element={<ProtectedRoute><Schools /></ProtectedRoute>} />
       <Route path="/collections" element={<ProtectedRoute><Collections /></ProtectedRoute>} />
       <Route path="/submissions/:collectionId" element={<ProtectedRoute><Submissions /></ProtectedRoute>} />
