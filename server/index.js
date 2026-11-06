@@ -19,6 +19,13 @@ app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(morgan("dev"));
 
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "MOE Kitui West API is running successfully.",
+    health: "/api/health"
+  });
+});
+
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/schools", schoolRoutes);
