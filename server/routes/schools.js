@@ -205,5 +205,14 @@ router.get("/stats/dashboard", requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+// Delete ALL schools (Danger Zone)
+router.delete("/delete-all", requireAuth, async (req, res) => {
+  try {
+    await School.deleteMany({});
+    res.json({ message: "All schools deleted successfully." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 export default router;
