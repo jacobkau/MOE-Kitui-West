@@ -103,7 +103,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
       const rowValues = Object.values(row).map(v => String(v || "").trim());
       if (rowValues.every(val => val === "")) return;
 
-      const code = getVal(["code", "Code", "CODE"]);
+      let code = getVal(["code", "Code", "CODE"]);
       const name = getVal(["name", "Name", "NAME", "School Name", "SCHOOL NAME"]);
       const category = getVal(["category", "Category", "CATEGORY"]).toLowerCase().replace(" ", "_"); 
       const zone = getVal(["zone", "Zone", "ZONE"]);
@@ -114,13 +114,20 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
       const principalName = getVal(["principalName", "Principal", "HOI", "Headteacher"]);
       const principalPhone = getVal(["principalPhone", "Phone", "Phone Number", "Contact"]);
 
-      if (!code || !name || !zone) {
-        errors.push(`Row ${rowNum}: Missing required fields. Make sure columns are named exactly: code, name, category, zone.`);
+      // FIX: If code is missing or N/A, generate a unique one
+      if (!code || code.toUpperCase() === "N/A") {
+        const zonePrefix = (zone || "SCH").substring(0, 3).toUpperCase();
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        code = `${zonePrefix}-${randomNum}`;
+      }
+
+      if (!name || !zone) {
+        errors.push(`Row ${rowNum}: Missing required fields (name, zone).`);
       } else {
         parsed.push({ 
           code, 
           name, 
-          category: category || "public_primary", 
+          category: category || "private_primary", 
           zone, 
           upnCode, 
           county, 
@@ -153,11 +160,17 @@ router.post("/import", requireAuth, async (req, res) => {
       },
     }));
 
-    const result = await School.bulkWrite(operations);
+    // FIX: ordered: false allows MongoDB to skip duplicates and keep going
+    const result = await School.bulkWrite(operations, { ordered: false });
     res.json({ message: "Import successful", result });
   } catch (err) {
+    // If there are duplicate errors, we still want to tell the user it succeeded mostly
+    if (err.code === 11000) {
+      return res.json({ message: "Import completed with some skipped duplicates.", result: err.result });
+    }
     res.status(500).json({ message: err.message });
   }
 });
+
 
 export default router;
