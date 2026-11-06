@@ -31,7 +31,7 @@ export default function Footer() {
           <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
             Developed by 
             <a 
-              href="mailto:kaujacob4@gmail.com" 
+              href="https://jacob-mwambwa-portfolio.vercel.app/" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-blue-600 hover:text-blue-800 hover:underline font-bold"
