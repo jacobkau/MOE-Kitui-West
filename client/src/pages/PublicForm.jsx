@@ -20,22 +20,33 @@ export default function PublicForm() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [existingData, setExistingData] = useState(false);
 
-  // 1. Fetch Form Details and School List
+  // 1. Fetch Form Details and School List (LIVE UPDATES EVERY 8 SECONDS)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const formRes = await api.get(`/collections/public/${slug}`);
         setCollection(formRes.data);
-        const schoolsRes = await api.get('/schools/public-list');
-        setSchools(schoolsRes.data);
+        
+        // Only fetch schools once to save bandwidth, unless they are empty
+        if (schools.length === 0) {
+          const schoolsRes = await api.get('/schools/public-list');
+          setSchools(schoolsRes.data);
+        }
       } catch (err) {
-        setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to load form.' });
+        // If the form gets closed while they are filling it, show the error
+        setMessage({ type: 'error', text: err.response?.data?.message || 'This form is no longer available.' });
+        setCollection(null);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
-  }, [slug]);
+    // Setup live polling
+    const intervalId = setInterval(fetchData, 8000);
+
+    return () => clearInterval(intervalId);
+  }, [slug]); // Removed 'schools' from dependency to avoid infinite loops
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -113,13 +124,14 @@ export default function PublicForm() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-medium text-gray-500">Loading form...</div>;
 
-  if (!collection || (message.type === 'error' && !collection)) {
+  // If form is closed or not found
+  if (!collection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full">
           <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">!</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Form Unavailable</h1>
-          <p className="text-gray-600">{message.text || 'This form does not exist or has been closed by the admin.'}</p>
+          <p className="text-gray-600">{message.text || 'This form has been closed by the Sub-County office.'}</p>
         </div>
       </div>
     );
@@ -131,7 +143,7 @@ export default function PublicForm() {
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full border-t-4 border-green-500">
           <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">{existingData ? 'Data Updated!' : 'Data Submitted!'}</h1>
-          <p className="text-gray-600 mb-6">Thank you. Your data has been received.</p>
+          <p className="text-gray-600 mb-6">Thank you. Your data has been received by the Sub-County office.</p>
           <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md font-medium hover:bg-gray-200">Submit Another</button>
         </div>
       </div>
@@ -145,30 +157,37 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // FILTER LOGIC BASED ON TARGET CATEGORY
+  // SAFE FILTER LOGIC (Prevents the toLowerCase crash)
   const filteredSchools = schools.filter((s) => {
-    // 1. First check if the school matches the target category
-    const cat = s.category.toLowerCase();
-    const target = collection.targetCategory;
+    const search = schoolSearch.toLowerCase().trim();
+    const name = (s.name || "").toLowerCase();
+    const code = (s.code || "").toLowerCase();
+    const cat = (s.category || "").toLowerCase();
+    const target = collection.targetCategory || "all";
 
+    // 1. Check if matches search
+    const matchesSearch = name.includes(search) || code.includes(search);
+    if (!matchesSearch) return false;
+
+    // 2. Check if matches target category
     let matchesTarget = false;
     if (target === 'all') matchesTarget = true;
-    else if (target === 'primary' && (cat.includes('public_primary') || cat.includes('primary'))) matchesTarget = true;
+    else if (target === 'primary' && cat.includes('primary')) matchesTarget = true;
     else if (target === 'private' && cat.includes('private')) matchesTarget = true;
     else if (target === 'secondary' && (cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
     else if (target === 'primary_private' && (cat.includes('primary') || cat.includes('private'))) matchesTarget = true;
     else if (target === 'primary_secondary' && (cat.includes('primary') || cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
     
-    // 2. Then filter by search term
-    const search = schoolSearch.toLowerCase().trim();
-    const matchesSearch = s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search);
-
-    return matchesTarget && matchesSearch;
+    // If the database is missing a category but target is 'all', allow it. 
+    // Otherwise, strictly enforce the target.
+    if (target === 'all') return true;
+    return matchesTarget;
   });
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
+        
         <div className="bg-blue-900 rounded-t-xl p-6 md:p-8 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-blue-200 text-sm font-bold tracking-wider mb-2 uppercase">Ministry of Education - Kitui West</p>
@@ -178,6 +197,7 @@ export default function PublicForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-100 p-4 md:p-8 border-x border-b border-gray-200 rounded-b-xl shadow-sm">
+          
           {message.text && (
             <div className={`p-4 mb-6 rounded-md border-l-4 ${message.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
               {message.text}
@@ -222,7 +242,7 @@ export default function PublicForm() {
                 <p className="text-sm text-green-600 font-bold flex items-center gap-1">✓ Selected Successfully</p>
                 {existingData && (
                   <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium">
-                    ⚠️ Pre-filled with previous submission.
+                    ⚠️ Pre-filled with previous submission. Submitting again will overwrite it.
                   </p>
                 )}
               </div>
