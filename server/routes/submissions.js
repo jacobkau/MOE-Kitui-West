@@ -63,5 +63,14 @@ router.post("/office", requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+// 4. Admin: Delete a submission
+router.delete("/:id", requireAuth, async (req, res) => {
+  try {
+    await Submission.findByIdAndDelete(req.params.id);
+    res.json({ message: "Submission deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 export default router;
