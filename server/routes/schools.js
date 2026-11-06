@@ -7,9 +7,30 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ==========================================
-// 1. PUBLIC ROUTE (For the Public Form dropdown)
-// ==========================================
+router.put("/:id", requireAuth, async (req, res) => {
+  try {
+    const { name, code, category, zone } = req.body;
+    const school = await School.findByIdAndUpdate(
+      req.params.id,
+      { name, code, category, zone },
+      { new: true }
+    );
+    res.json(school);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.delete("/:id", requireAuth, async (req, res) => {
+  try {
+    await School.findByIdAndDelete(req.params.id);
+    res.json({ message: "School deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 router.get("/public-list", async (req, res) => {
   try {
     const schools = await School.find({ isActive: true })
@@ -21,11 +42,7 @@ router.get("/public-list", async (req, res) => {
   }
 });
 
-// ==========================================
-// 2. ADMIN ROUTES (Protected)
-// ==========================================
 
-// Get all schools with filters
 router.get("/", requireAuth, async (req, res) => {
   const { category, zone, search } = req.query;
   let query = {};
@@ -47,12 +64,10 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// Get metadata (zones and categories)
 router.get("/meta", (req, res) => {
   res.json({ zones: ZONES, categories: CATEGORIES });
 });
 
-// Upload Excel/CSV and get Preview
 router.post("/upload-preview", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -65,7 +80,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
     const errors = [];
 
     data.forEach((row, index) => {
-      const rowNum = index + 2; // Excel row number (1-based + header)
+      const rowNum = index + 2; 
       const code = String(row.code || row.Code || "").trim();
       const name = String(row.name || row.Name || "").trim();
       const category = String(row.category || row.Category || "").trim().toLowerCase();
@@ -88,7 +103,6 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
   }
 });
 
-// Confirm Import (Bulk insert/update)
 router.post("/import", requireAuth, async (req, res) => {
   const { schools } = req.body;
   if (!Array.isArray(schools) || schools.length === 0) {
@@ -96,7 +110,6 @@ router.post("/import", requireAuth, async (req, res) => {
   }
 
   try {
-    // We use upsert to update existing schools if the code matches, or insert new ones
     const operations = schools.map((s) => ({
       updateOne: {
         filter: { code: s.code },
