@@ -18,6 +18,9 @@ export default function PublicForm() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSuccess, setIsSuccess] = useState(false);
+  
+  // NEW: Track if they are editing existing data
+  const [existingData, setExistingData] = useState(false);
 
   // 1. Fetch Form Details and School List
   useEffect(() => {
@@ -52,10 +55,25 @@ export default function PublicForm() {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSelectSchool = (school) => {
+  const handleSelectSchool = async (school) => {
     setSelectedSchool(school._id);
-    setSchoolSearch(`${school.name} (${school.code})`); // Show full name and code
+    setSchoolSearch(`${school.name} (${school.code})`);
     setIsDropdownOpen(false);
+    
+    // Check if data exists
+    try {
+      const checkRes = await api.get(`/submissions/check/${collection._id}/${school._id}`);
+      if (checkRes.data.exists) {
+        setExistingData(true);
+        // Pre-fill the answers
+        setAnswers(checkRes.data.answers || {});
+      } else {
+        setExistingData(false);
+        setAnswers({}); // Clear form for new entry
+      }
+    } catch (err) {
+      console.error("Error checking existing data", err);
+    }
   };
 
   // Submit the form
@@ -104,7 +122,7 @@ export default function PublicForm() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full border-t-4 border-green-500">
           <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Data Submitted Successfully!</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{existingData ? 'Data Updated Successfully!' : 'Data Submitted Successfully!'}</h1>
           <p className="text-gray-600 mb-6">Thank you. Your school's data has been received by the Sub-County office.</p>
           <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md font-medium hover:bg-gray-200 transition-colors">
             Submit Another Response
@@ -128,8 +146,6 @@ export default function PublicForm() {
     const name = s.name.toLowerCase();
     const code = s.code.toLowerCase();
     const zone = s.zone.toLowerCase();
-
-    // Return true if the search matches ANY part of the name, code, or zone
     return name.includes(search) || code.includes(search) || zone.includes(search);
   });
 
@@ -168,11 +184,12 @@ export default function PublicForm() {
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
                   setIsDropdownOpen(true);
-                  setSelectedSchool(''); // Reset selection if they type again
+                  setSelectedSchool(''); 
+                  setExistingData(false); // Reset check
                 }}
                 onFocus={() => setIsDropdownOpen(true)}
                 className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10 text-lg"
-                autoComplete="off" // Prevents browser from showing old histories
+                autoComplete="off" 
                 required={!selectedSchool} 
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
@@ -206,62 +223,79 @@ export default function PublicForm() {
             )}
             
             {selectedSchool && (
-              <p className="text-sm text-green-600 mt-2 font-bold flex items-center gap-1">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                Selected Successfully
-              </p>
+              <div className="mt-2">
+                <p className="text-sm text-green-600 font-bold flex items-center gap-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                  Selected Successfully
+                </p>
+                {existingData && (
+                  <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium flex items-center gap-2">
+                    <span className="text-lg">⚠️</span> You have already submitted data for this form. The form below has been pre-filled with your previous submission. Submitting again will overwrite the old data.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
           {/* STEP 2: Dynamic Form Fields grouped in Cards */}
           <div className="space-y-6">
-            {Object.entries(groupedFields).map(([groupName, fields]) => (
-              <div key={groupName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-blue-50 px-5 py-3 border-b border-gray-200">
-                  <h2 className="text-lg font-bold text-blue-900">{groupName}</h2>
-                </div>
-                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {fields.map((field) => (
-                    <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">
-                        {field.label} {field.required && <span className="text-red-500">*</span>}
-                      </label>
+            {Object.entries(groupedFields).map(([groupName, fields]) => {
+              const numberFields = fields.filter(f => f.type === 'number');
+              const groupTotal = numberFields.reduce((sum, f) => sum + (Number(answers[f.key]) || 0), 0);
 
-                      {field.type === 'select' ? (
-                        <select
-                          required={field.required}
-                          value={answers[field.key] || ''}
-                          onChange={(e) => handleInputChange(field.key, e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Select option</option>
-                          {field.options?.map((opt) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      ) : field.type === 'textarea' ? (
-                        <textarea
-                          required={field.required}
-                          value={answers[field.key] || ''}
-                          onChange={(e) => handleInputChange(field.key, e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          rows="3"
-                        />
-                      ) : (
-                        <input
-                          type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                          required={field.required}
-                          value={answers[field.key] || ''}
-                          onChange={(e) => handleInputChange(field.key, e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                          placeholder={field.type === 'number' ? 'Enter number' : 'Enter details'}
-                        />
-                      )}
-                    </div>
-                  ))}
+              return (
+                <div key={groupName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="bg-blue-50 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <h2 className="text-lg font-bold text-blue-900">{groupName}</h2>
+                    {numberFields.length > 0 && (
+                      <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        Total: {groupTotal}
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {fields.map((field) => (
+                      <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {field.label} {field.required && <span className="text-red-500">*</span>}
+                        </label>
+
+                        {field.type === 'select' ? (
+                          <select
+                            required={field.required}
+                            value={answers[field.key] || ''}
+                            onChange={(e) => handleInputChange(field.key, e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                          >
+                            <option value="">Select option</option>
+                            {field.options?.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : field.type === 'textarea' ? (
+                          <textarea
+                            required={field.required}
+                            value={answers[field.key] || ''}
+                            onChange={(e) => handleInputChange(field.key, e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                            rows="3"
+                          />
+                        ) : (
+                          <input
+                            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                            required={field.required}
+                            value={answers[field.key] || ''}
+                            onChange={(e) => handleInputChange(field.key, e.target.value)}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
+                            placeholder={field.type === 'number' ? '0' : 'Enter details'}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* STEP 3: Submit */}
@@ -271,7 +305,7 @@ export default function PublicForm() {
               disabled={submitting}
               className="w-full md:w-auto bg-blue-600 text-white px-10 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold text-lg shadow-md transition-colors"
             >
-              {submitting ? 'Submitting Data...' : 'Submit Data'}
+              {submitting ? 'Submitting Data...' : (existingData ? 'Update Existing Data' : 'Submit Data')}
             </button>
           </div>
         </form>
