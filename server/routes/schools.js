@@ -144,7 +144,6 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
   }
 });
 
-// 7. Confirm Import
 router.post("/import", requireAuth, async (req, res) => {
   const { schools } = req.body;
   if (!Array.isArray(schools) || schools.length === 0) {
@@ -154,23 +153,23 @@ router.post("/import", requireAuth, async (req, res) => {
   try {
     const operations = schools.map((s) => ({
       updateOne: {
-        filter: { code: s.code },
+        filter: { name: s.name, category: s.category },
         update: { $set: s },
         upsert: true,
       },
     }));
 
-    // FIX: ordered: false allows MongoDB to skip duplicates and keep going
     const result = await School.bulkWrite(operations, { ordered: false });
     res.json({ message: "Import successful", result });
   } catch (err) {
-    // If there are duplicate errors, we still want to tell the user it succeeded mostly
     if (err.code === 11000) {
       return res.json({ message: "Import completed with some skipped duplicates.", result: err.result });
     }
     res.status(500).json({ message: err.message });
   }
 });
+
+
 // 8. Get School Statistics for Dashboard
 router.get("/stats/dashboard", requireAuth, async (req, res) => {
   try {
