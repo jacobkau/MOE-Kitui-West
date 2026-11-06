@@ -17,6 +17,7 @@ export default function Collections() {
   const [deletingId, setDeletingId] = useState(null);
   
   // Form builder state
+  const [editingId, setEditingId] = useState(null); // Tracks if we are editing
   const [newCollection, setNewCollection] = useState({ name: '', term: '', description: '' });
   const [fields, setFields] = useState([
     { key: 'general_total_boys', label: 'Total Boys', type: 'number', required: true, group: 'General' }
@@ -39,7 +40,7 @@ export default function Collections() {
     const updated = [...fields];
     updated[index][key] = value;
     
-    // FIX: Generate a unique key using BOTH group and label
+    // Generate a unique key using BOTH group and label
     if (key === 'label' || key === 'group') {
       const groupStr = updated[index].group ? updated[index].group.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'general';
       const labelStr = updated[index].label ? updated[index].label.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'field';
@@ -52,21 +53,44 @@ export default function Collections() {
     setFields(fields.filter((_, i) => i !== index));
   };
 
-  // --- Create Form ---
-  const handleCreate = async (e) => {
+  // --- Open Edit Mode ---
+  const handleEditClick = (col) => {
+    setEditingId(col._id);
+    setNewCollection({ name: col.name, term: col.term, description: col.description || '' });
+    setFields(col.fields);
+    setIsCreating(true);
+    
+    // Scroll to top so they see the form builder
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- Cancel Create/Edit ---
+  const handleCancel = () => {
+    setIsCreating(false);
+    setEditingId(null);
+    setNewCollection({ name: '', term: '', description: '' });
+    setFields([{ key: 'general_total_boys', label: 'Total Boys', type: 'number', required: true, group: 'General' }]);
+  };
+
+  // --- Save Form (Create or Update) ---
+  const handleSave = async (e) => {
     e.preventDefault();
     if (fields.length === 0) return alert("Add at least one field.");
     if (fields.some(f => !f.label || !f.key)) return alert("All fields must have a label.");
 
     setIsSaving(true);
     try {
-      await api.post('/collections', { ...newCollection, fields });
-      setIsCreating(false);
-      setNewCollection({ name: '', term: '', description: '' });
-      setFields([{ key: 'general_total_boys', label: 'Total Boys', type: 'number', required: true, group: 'General' }]);
+      if (editingId) {
+        // We need a backend endpoint to update collections. Assuming it exists or using a generic PUT.
+        await api.put(`/collections/${editingId}`, { ...newCollection, fields });
+        alert("Form updated successfully!");
+      } else {
+        await api.post('/collections', { ...newCollection, fields });
+      }
+      handleCancel(); // Reset form
       fetchCollections();
     } catch (err) {
-      alert('Failed to create form');
+      alert(editingId ? 'Failed to update form. Ensure backend supports PUT.' : 'Failed to create form');
     } finally {
       setIsSaving(false);
     }
@@ -137,7 +161,7 @@ export default function Collections() {
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => setIsCreating(!isCreating)} 
+            onClick={() => isCreating ? handleCancel() : setIsCreating(true)} 
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 font-medium transition-colors"
           >
             {isCreating ? 'Cancel' : '+ Create New Form'}
@@ -147,21 +171,23 @@ export default function Collections() {
       </div>
 
       {/* SEARCH BAR */}
-      <div className="mb-6">
-        <input 
-          type="text" 
-          placeholder="Search forms by name or term..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-        />
-      </div>
+      {!isCreating && (
+        <div className="mb-6">
+          <input 
+            type="text" 
+            placeholder="Search forms by name or term..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+          />
+        </div>
+      )}
 
-      {/* CREATE FORM BUILDER */}
+      {/* CREATE / EDIT FORM BUILDER */}
       {isCreating && (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8 border-t-4 border-t-blue-500">
-          <h2 className="text-lg font-bold mb-4">Form Builder</h2>
-          <form onSubmit={handleCreate}>
+          <h2 className="text-lg font-bold mb-4">{editingId ? 'Edit Form' : 'Form Builder'}</h2>
+          <form onSubmit={handleSave}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Form Name</label>
@@ -211,9 +237,12 @@ export default function Collections() {
             
             <button type="button" onClick={addField} className="mt-2 text-blue-600 font-bold text-sm hover:underline">+ Add Field</button>
 
-            <div className="mt-6 pt-4 border-t">
+            <div className="mt-6 pt-4 border-t flex gap-3">
               <button type="submit" disabled={isSaving} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 transition-colors">
-                {isSaving ? 'Saving Form...' : 'Save Form'}
+                {isSaving ? 'Saving...' : (editingId ? 'Update Form' : 'Save Form')}
+              </button>
+              <button type="button" onClick={handleCancel} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">
+                Cancel
               </button>
             </div>
           </form>
@@ -233,6 +262,12 @@ export default function Collections() {
                     <p className="text-gray-500 text-sm mt-1">{col.description}</p>
                   </div>
                   <div className="flex gap-2 items-center">
+                    <button 
+                      onClick={() => handleEditClick(col)}
+                      className="text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md text-xs font-bold transition-colors"
+                    >
+                      Edit
+                    </button>
                     <button 
                       onClick={() => toggleStatus(col._id, col.status)} 
                       disabled={togglingId === col._id}
