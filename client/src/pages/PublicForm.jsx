@@ -80,9 +80,7 @@ export default function PublicForm() {
     setSubmitting(true);
     setMessage({ type: '', text: '' });
 
-    // Prepare data to submit: Include the auto-calculated totals
     const dataToSubmit = { ...answers };
-    
     const groupedFields = collection.fields.reduce((acc, field) => {
       const group = field.group || 'General';
       if (!acc[group]) acc[group] = [];
@@ -90,7 +88,6 @@ export default function PublicForm() {
       return acc;
     }, {});
 
-    // Loop through groups and add the calculated total to the payload
     Object.entries(groupedFields).forEach(([groupName, fields]) => {
       const numberFields = fields.filter(f => f.type === 'number');
       if (numberFields.length > 0) {
@@ -108,7 +105,7 @@ export default function PublicForm() {
       setIsSuccess(true);
       window.scrollTo(0, 0); 
     } catch (err) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Submission failed. Please try again.' });
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Submission failed.' });
     } finally {
       setSubmitting(false);
     }
@@ -133,11 +130,9 @@ export default function PublicForm() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full border-t-4 border-green-500">
           <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">{existingData ? 'Data Updated Successfully!' : 'Data Submitted Successfully!'}</h1>
-          <p className="text-gray-600 mb-6">Thank you. Your school's data has been received by the Sub-County office.</p>
-          <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md font-medium hover:bg-gray-200 transition-colors">
-            Submit Another Response
-          </button>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{existingData ? 'Data Updated!' : 'Data Submitted!'}</h1>
+          <p className="text-gray-600 mb-6">Thank you. Your data has been received.</p>
+          <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md font-medium hover:bg-gray-200">Submit Another</button>
         </div>
       </div>
     );
@@ -150,15 +145,30 @@ export default function PublicForm() {
     return acc;
   }, {});
 
+  // FILTER LOGIC BASED ON TARGET CATEGORY
   const filteredSchools = schools.filter((s) => {
+    // 1. First check if the school matches the target category
+    const cat = s.category.toLowerCase();
+    const target = collection.targetCategory;
+
+    let matchesTarget = false;
+    if (target === 'all') matchesTarget = true;
+    else if (target === 'primary' && (cat.includes('public_primary') || cat.includes('primary'))) matchesTarget = true;
+    else if (target === 'private' && cat.includes('private')) matchesTarget = true;
+    else if (target === 'secondary' && (cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
+    else if (target === 'primary_private' && (cat.includes('primary') || cat.includes('private'))) matchesTarget = true;
+    else if (target === 'primary_secondary' && (cat.includes('primary') || cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
+    
+    // 2. Then filter by search term
     const search = schoolSearch.toLowerCase().trim();
-    return s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search);
+    const matchesSearch = s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search);
+
+    return matchesTarget && matchesSearch;
   });
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
-        
         <div className="bg-blue-900 rounded-t-xl p-6 md:p-8 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-blue-200 text-sm font-bold tracking-wider mb-2 uppercase">Ministry of Education - Kitui West</p>
@@ -168,7 +178,6 @@ export default function PublicForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-100 p-4 md:p-8 border-x border-b border-gray-200 rounded-b-xl shadow-sm">
-          
           {message.text && (
             <div className={`p-4 mb-6 rounded-md border-l-4 ${message.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
               {message.text}
@@ -204,7 +213,7 @@ export default function PublicForm() {
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-red-500">No schools found.</div>
+                  <div className="p-4 text-center text-red-500">No schools found matching your search.</div>
                 )}
               </div>
             )}
@@ -213,7 +222,7 @@ export default function PublicForm() {
                 <p className="text-sm text-green-600 font-bold flex items-center gap-1">✓ Selected Successfully</p>
                 {existingData && (
                   <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium">
-                    ⚠️ Pre-filled with previous submission. Submitting again will overwrite it.
+                    ⚠️ Pre-filled with previous submission.
                   </p>
                 )}
               </div>
@@ -245,7 +254,6 @@ export default function PublicForm() {
                         </div>
                       ))}
                     </div>
-                    {/* TOTAL BADGE AT THE BOTTOM */}
                     {numberFields.length > 0 && (
                       <div className="flex justify-end pt-3 border-t border-gray-100">
                         <span className="bg-blue-100 text-blue-800 text-sm font-bold px-4 py-1.5 rounded-full">
