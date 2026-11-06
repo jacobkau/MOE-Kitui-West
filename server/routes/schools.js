@@ -70,10 +70,11 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// 5. Meta data (Zones/Categories)
+// 5. Meta data 
 router.get("/meta", (req, res) => {
   res.json({ zones: ZONES, categories: CATEGORIES });
 });
+
 router.post("/upload-preview", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -88,41 +89,40 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
     data.forEach((row, index) => {
       const rowNum = index + 2;
       
-      // SMART GETTER: Ignores case and spaces in headers
       const getVal = (keys) => {
-        const cleanKeys = keys.map(k => k.toLowerCase().replace(/\s/g, ''));
-        for (let rowKey of Object.keys(row)) {
-          const cleanRowKey = rowKey.toLowerCase().replace(/\s/g, '');
-          if (cleanKeys.includes(cleanRowKey) && row[rowKey] !== undefined && row[rowKey] !== null) {
-            return String(row[rowKey]).trim();
-          }
+        for (let k of keys) {
+          if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
         }
         return "";
       };
 
-      const code = getVal(["code", "schoolcode", "school code"]);
-      const name = getVal(["name", "schoolname", "school name"]);
-      const category = getVal(["category", "type", "schooltype"]).toLowerCase().replace(/\s/g, '_');
-      const zone = getVal(["zone", "location"]).replace(/\s/g, '');
+      const rowValues = Object.values(row).map(v => String(v || "").trim());
+      if (rowValues.every(val => val === "")) return;
+
+      const code = getVal(["code", "Code", "CODE"]);
+      const name = getVal(["name", "Name", "NAME", "School Name", "SCHOOL NAME"]);
+      const category = getVal(["category", "Category", "CATEGORY"]).toLowerCase().replace(" ", "_"); 
+      const zone = getVal(["zone", "Zone", "ZONE"]);
       
-      // New Fields
       const upnCode = getVal(["upnCode", "UPN Code", "UPN", "upn"]);
-      const county = getVal(["county", "County"]) || "Kitui";
-      const subCounty = getVal(["subCounty", "Sub County", "subcounty"]) || "Kitui West";
+      const county = getVal(["county", "County", "COUNTY"]) || "Kitui";
+      const subCounty = getVal(["subCounty", "Sub County", "SubCounty"]) || "Kitui West";
       const principalName = getVal(["principalName", "Principal", "HOI", "Headteacher"]);
       const principalPhone = getVal(["principalPhone", "Phone", "Phone Number", "Contact"]);
 
-      // Better error messages
-      if (!code) errors.push(`Row ${rowNum}: Missing 'Code'`);
-      else if (!name) errors.push(`Row ${rowNum}: Missing 'Name'`);
-      else if (!category) errors.push(`Row ${rowNum}: Missing 'Category'`);
-      else if (!zone) errors.push(`Row ${rowNum}: Missing 'Zone'`);
-      else if (!CATEGORIES.includes(category)) errors.push(`Row ${rowNum}: Invalid category '${category}'`);
-      else if (!ZONES.includes(zone)) errors.push(`Row ${rowNum}: Invalid zone '${zone}' (Must be Tulia, Kauwi, Musengo, or Katutu)`);
-      else {
+      if (!code || !name || !zone) {
+        errors.push(`Row ${rowNum}: Missing required fields. Make sure columns are named exactly: code, name, category, zone.`);
+      } else {
         parsed.push({ 
-          code, name, category, zone, 
-          upnCode, county, subCounty, principalName, principalPhone 
+          code, 
+          name, 
+          category: category || "public_primary", 
+          zone, 
+          upnCode, 
+          county, 
+          subCounty, 
+          principalName, 
+          principalPhone 
         });
       }
     });
@@ -132,6 +132,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
     res.status(500).json({ message: "Failed to parse file. Ensure it is a valid Excel/CSV." });
   }
 });
+
 // 7. Confirm Import
 router.post("/import", requireAuth, async (req, res) => {
   const { schools } = req.body;
