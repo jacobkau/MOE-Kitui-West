@@ -54,7 +54,7 @@ export default function PublicForm() {
 
   const handleSelectSchool = (school) => {
     setSelectedSchool(school._id);
-    setSchoolSearch(`${school.code} - ${school.name} (${school.zone} Zone)`);
+    setSchoolSearch(`${school.name} (${school.code})`); // Show full name and code
     setIsDropdownOpen(false);
   };
 
@@ -122,11 +122,16 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // Filter schools based on search input
-  const filteredSchools = schools.filter(s => 
-    s.name.toLowerCase().includes(schoolSearch.toLowerCase()) || 
-    s.code.toLowerCase().includes(schoolSearch.toLowerCase())
-  );
+  // BULLETPROOF SEARCH LOGIC
+  const filteredSchools = schools.filter((s) => {
+    const search = schoolSearch.toLowerCase().trim();
+    const name = s.name.toLowerCase();
+    const code = s.code.toLowerCase();
+    const zone = s.zone.toLowerCase();
+
+    // Return true if the search matches ANY part of the name, code, or zone
+    return name.includes(search) || code.includes(search) || zone.includes(search);
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
@@ -155,20 +160,20 @@ export default function PublicForm() {
           <div className="mb-8 bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500 relative" ref={dropdownRef}>
             <label className="block text-gray-800 font-bold mb-2">Search and Select Your School <span className="text-red-500">*</span></label>
             
-            {/* Input Field */}
             <div className="relative">
               <input
                 type="text"
-                placeholder="Type school name or code..."
+                placeholder="Type full school name (e.g. Kitui High School)..."
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
                   setIsDropdownOpen(true);
-                  setSelectedSchool(''); // Reset selected if they start typing again
+                  setSelectedSchool(''); // Reset selection if they type again
                 }}
                 onFocus={() => setIsDropdownOpen(true)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10"
-                required={!selectedSchool} // Only required if they haven't picked one
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10 text-lg"
+                autoComplete="off" // Prevents browser from showing old histories
+                required={!selectedSchool} 
               />
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -183,24 +188,27 @@ export default function PublicForm() {
                     <div 
                       key={s._id} 
                       onClick={() => handleSelectSchool(s)}
-                      className="p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors"
+                      className="p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors flex justify-between items-center"
                     >
-                      <div className="font-bold text-gray-800">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.code} • {s.zone} Zone</div>
+                      <div>
+                        <div className="font-bold text-gray-800 text-lg">{s.name}</div>
+                        <div className="text-xs text-gray-500 font-medium">{s.code} • {s.zone} Zone</div>
+                      </div>
+                      <div className="text-blue-500 text-sm font-bold">Select</div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-gray-500 text-sm">
-                    No schools found matching "{schoolSearch}"
+                  <div className="p-4 text-center text-red-500 font-medium text-sm">
+                    No schools found matching "{schoolSearch}". Check your spelling.
                   </div>
                 )}
               </div>
             )}
             
             {selectedSchool && (
-              <p className="text-xs text-green-600 mt-2 font-medium flex items-center gap-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                School Selected
+              <p className="text-sm text-green-600 mt-2 font-bold flex items-center gap-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                Selected Successfully
               </p>
             )}
           </div>
