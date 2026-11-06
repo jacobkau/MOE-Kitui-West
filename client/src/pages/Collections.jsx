@@ -6,6 +6,8 @@ export default function Collections() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
   
   // Form builder state
   const [newCollection, setNewCollection] = useState({ name: '', term: '', description: '' });
@@ -29,7 +31,6 @@ export default function Collections() {
   const updateField = (index, key, value) => {
     const updated = [...fields];
     updated[index][key] = value;
-    // Auto-generate the database key from the label if typing the label
     if (key === 'label') {
       updated[index].key = value.toLowerCase().replace(/[^a-z0-9]/g, '_');
     }
@@ -46,6 +47,7 @@ export default function Collections() {
     if (fields.length === 0) return alert("Add at least one field.");
     if (fields.some(f => !f.label || !f.key)) return alert("All fields must have a label.");
 
+    setIsSaving(true);
     try {
       await api.post('/collections', { ...newCollection, fields });
       setIsCreating(false);
@@ -54,12 +56,24 @@ export default function Collections() {
       fetchCollections();
     } catch (err) {
       alert('Failed to create form');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const toggleStatus = async (id) => {
-    await api.patch(`/collections/${id}/status`);
-    fetchCollections();
+  const toggleStatus = async (id, currentStatus) => {
+    const action = currentStatus === 'open' ? 'CLOSE' : 'REOPEN';
+    if (!window.confirm(`Are you sure you want to ${action} this form? Schools will ${action === 'CLOSE' ? 'no longer be able to submit' : 'be able to submit again'}.`)) return;
+
+    setTogglingId(id);
+    try {
+      await api.patch(`/collections/${id}/status`);
+      fetchCollections();
+    } catch (err) {
+      alert("Failed to change status");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   // --- Export Excel ---
@@ -79,68 +93,79 @@ export default function Collections() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Data Collections</h1>
-        <div className="flex gap-4">
-          <button onClick={() => setIsCreating(!isCreating)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Data Collections</h1>
+          <p className="text-sm text-gray-500 mt-1">Create forms and manage data submissions.</p>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setIsCreating(!isCreating)} 
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 font-medium transition-colors"
+          >
             {isCreating ? 'Cancel' : '+ Create New Form'}
           </button>
-          <Link to="/" className="text-blue-600 hover:underline py-2">← Dashboard</Link>
+          <Link to="/" className="text-gray-500 hover:text-gray-800 py-2 text-sm font-medium">← Dashboard</Link>
         </div>
       </div>
 
       {/* CREATE FORM BUILDER */}
       {isCreating && (
-        <div className="bg-white p-6 rounded-lg shadow-lg mb-8 border-t-4 border-blue-500">
-          <h2 className="text-xl font-bold mb-4">Form Builder</h2>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8 border-t-4 border-t-blue-500">
+          <h2 className="text-lg font-bold mb-4">Form Builder</h2>
           <form onSubmit={handleCreate}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-bold mb-1">Form Name</label>
-                <input required type="text" placeholder="e.g. Term 1 Enrollment" value={newCollection.name} onChange={e => setNewCollection({...newCollection, name: e.target.value})} className="w-full p-2 border rounded" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Form Name</label>
+                <input required type="text" placeholder="e.g. Term 1 Enrollment" value={newCollection.name} onChange={e => setNewCollection({...newCollection, name: e.target.value})} className="w-full p-2 border rounded-md" />
               </div>
               <div>
-                <label className="block text-sm font-bold mb-1">Term / Year</label>
-                <input required type="text" placeholder="e.g. 2025-T1" value={newCollection.term} onChange={e => setNewCollection({...newCollection, term: e.target.value})} className="w-full p-2 border rounded" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Term / Year</label>
+                <input required type="text" placeholder="e.g. 2025-T1" value={newCollection.term} onChange={e => setNewCollection({...newCollection, term: e.target.value})} className="w-full p-2 border rounded-md" />
               </div>
               <div>
-                <label className="block text-sm font-bold mb-1">Description (Optional)</label>
-                <input type="text" placeholder="Instructions for schools" value={newCollection.description} onChange={e => setNewCollection({...newCollection, description: e.target.value})} className="w-full p-2 border rounded" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
+                <input type="text" placeholder="Instructions" value={newCollection.description} onChange={e => setNewCollection({...newCollection, description: e.target.value})} className="w-full p-2 border rounded-md" />
               </div>
             </div>
 
-            <h3 className="font-bold text-lg mb-2 border-b pb-2">Form Fields</h3>
+            <h3 className="font-bold text-gray-800 mb-2 border-b pb-2">Form Fields</h3>
+            <p className="text-xs text-gray-500 mb-4">Tip: Group fields together to create totals (e.g., group "Grade 1" for Grade 1 Boys and Grade 1 Girls).</p>
+            
             {fields.map((field, index) => (
-              <div key={index} className="flex gap-2 items-end mb-2 bg-gray-50 p-2 rounded">
-                <div className="flex-1">
-                  <label className="text-xs text-gray-500">Group (e.g. Enrollment)</label>
-                  <input type="text" value={field.group} onChange={e => updateField(index, 'group', e.target.value)} className="w-full p-1 border rounded text-sm" />
+              <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-end mb-3 bg-gray-50 p-3 rounded border">
+                <div className="flex-1 w-full">
+                  <label className="text-xs font-semibold text-gray-600">Group Name</label>
+                  <input type="text" placeholder="e.g. Grade 1" value={field.group} onChange={e => updateField(index, 'group', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
-                <div className="flex-1">
-                  <label className="text-xs text-gray-500">Label (What schools see)</label>
-                  <input required type="text" value={field.label} onChange={e => updateField(index, 'label', e.target.value)} className="w-full p-1 border rounded text-sm" />
+                <div className="flex-1 w-full">
+                  <label className="text-xs font-semibold text-gray-600">Label (What schools see)</label>
+                  <input required type="text" placeholder="e.g. Total Girls" value={field.label} onChange={e => updateField(index, 'label', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
-                <div className="w-32">
-                  <label className="text-xs text-gray-500">Type</label>
-                  <select value={field.type} onChange={e => updateField(index, 'type', e.target.value)} className="w-full p-1 border rounded text-sm">
+                <div className="w-full md:w-40">
+                  <label className="text-xs font-semibold text-gray-600">Type</label>
+                  {/* FIXED DROPDOWN VISIBILITY */}
+                  <select value={field.type} onChange={e => updateField(index, 'type', e.target.value)} className="w-full p-2 border rounded-md text-sm bg-white block">
                     <option value="number">Number</option>
                     <option value="text">Text</option>
                     <option value="textarea">Text Area</option>
                   </select>
                 </div>
-                <div className="flex items-center mb-1">
-                  <input type="checkbox" checked={field.required} onChange={e => updateField(index, 'required', e.target.checked)} className="mr-1" />
-                  <span className="text-sm">Req</span>
+                <div className="flex items-center mb-2">
+                  <input type="checkbox" checked={field.required} onChange={e => updateField(index, 'required', e.target.checked)} className="w-4 h-4 mr-1 text-blue-600" />
+                  <span className="text-xs font-medium text-gray-700">Required</span>
                 </div>
-                <button type="button" onClick={() => removeField(index)} className="text-red-500 font-bold px-2 py-1 mb-1 hover:bg-red-100 rounded">X</button>
+                <button type="button" onClick={() => removeField(index)} className="text-red-500 font-bold px-2 py-2 hover:bg-red-100 rounded-md mb-1">✕</button>
               </div>
             ))}
             
             <button type="button" onClick={addField} className="mt-2 text-blue-600 font-bold text-sm hover:underline">+ Add Field</button>
 
             <div className="mt-6 pt-4 border-t">
-              <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700">Save Form</button>
+              <button type="submit" disabled={isSaving} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 transition-colors">
+                {isSaving ? 'Saving Form...' : 'Save Form'}
+              </button>
             </div>
           </form>
         </div>
@@ -152,30 +177,34 @@ export default function Collections() {
           {collections.map(col => {
             const publicLink = `${window.location.origin}/form/${col.publicSlug}`;
             return (
-              <div key={col._id} className="bg-white p-6 rounded-lg shadow border-l-4 border-gray-400">
-                <div className="flex justify-between items-start mb-4">
+              <div key={col._id} className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
+                <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">{col.name} <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded ml-2">{col.term}</span></h2>
-                    <p className="text-gray-600 text-sm mt-1">{col.description}</p>
+                    <h2 className="text-xl font-bold text-gray-800">{col.name} <span className="text-xs font-normal text-gray-600 bg-gray-100 px-2 py-1 rounded ml-2">{col.term}</span></h2>
+                    <p className="text-gray-500 text-sm mt-1">{col.description}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => toggleStatus(col._id)} className={`px-3 py-1 rounded text-sm font-bold ${col.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {col.status === 'open' ? 'OPEN' : 'CLOSED'}
+                    <button 
+                      onClick={() => toggleStatus(col._id, col.status)} 
+                      disabled={togglingId === col._id}
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-colors disabled:opacity-50 ${col.status === 'open' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                    >
+                      {togglingId === col._id ? 'Updating...' : col.status === 'open' ? 'CLOSE FORM' : 'REOPEN FORM'}
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded mb-4 flex justify-between items-center">
+                <div className="bg-blue-50 p-3 rounded-md mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                   <div>
                     <p className="text-xs text-blue-800 font-bold mb-1">PUBLIC LINK FOR SCHOOLS:</p>
-                    <code className="text-sm text-blue-900 select-all">{publicLink}</code>
+                    <code className="text-sm text-blue-900 select-all break-all">{publicLink}</code>
                   </div>
-                  <button onClick={() => { navigator.clipboard.writeText(publicLink); alert('Link copied!'); }} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Copy Link</button>
+                  <button onClick={() => { navigator.clipboard.writeText(publicLink); alert('Link copied!'); }} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm hover:bg-blue-700 font-medium whitespace-nowrap">Copy Link</button>
                 </div>
 
-                <div className="flex gap-3 mt-4 pt-4 border-t">
-                  <Link to={`/submissions/${col._id}`} className="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-900">View Submissions</Link>
-                  <button onClick={() => downloadExcel(col._id, col.name)} className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700">Export to Excel</button>
+                <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t">
+                  <Link to={`/submissions/${col._id}`} className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-900 font-medium">View Submissions</Link>
+                  <button onClick={() => downloadExcel(col._id, col.name)} className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 font-medium">Export to Excel</button>
                 </div>
               </div>
             );
