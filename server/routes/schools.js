@@ -204,11 +204,20 @@ router.get("/stats/dashboard", requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-// Delete ALL schools (Danger Zone)
+
 router.delete("/delete-all", requireAuth, async (req, res) => {
   try {
-    await School.deleteMany({});
-    res.json({ message: "All schools deleted successfully." });
+    const { category } = req.query;
+    let query = {};
+    
+    if (category === 'primary') {
+      query = { category: { $in: ['public_primary', 'private_primary'] } };
+    } else if (category === 'secondary') {
+      query = { category: { $in: ['secondary', 'junior_secondary'] } };
+    }
+
+    await School.deleteMany(query);
+    res.json({ message: "Schools deleted successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
