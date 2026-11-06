@@ -26,40 +26,6 @@ app.get("/", (req, res) => {
   });
 });
 
-
-
-
-
-
-// TEMPORARY SETUP ROUTE
-app.get("/api/setup-admin", async (req, res) => {
-  try {
-    const bcrypt = (await import("bcryptjs")).default;
-    const User = (await import("./models/User.js")).default;
-
-    // Check if admin already exists
-    const existing = await User.findOne({ username: process.env.ADMIN_USERNAME });
-    if (existing) {
-      return res.send("Admin already exists! You can delete this route now.");
-    }
-
-    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || "SCDEMOE1331", 10);
-    await User.create({
-      username: process.env.ADMIN_USERNAME || "SCDE13331",
-      passwordHash,
-      role: "admin"
-    });
-
-    res.send("Admin created successfully! Go log in, then delete this route from your code.");
-  } catch (err) {
-    res.status(500).send("Error: " + err.message);
-  }
-});
-
-
-
-
-
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/schools", schoolRoutes);
