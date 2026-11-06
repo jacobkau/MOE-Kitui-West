@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import xlsx from "xlsx";
-import School, { ZONES, CATEGORIES } from "../models/School.js";
+import School from "../models/School.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -70,11 +70,15 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// 5. Meta data 
+// 5. Meta data (fallback just in case)
 router.get("/meta", (req, res) => {
-  res.json({ zones: ZONES, categories: CATEGORIES });
+  res.json({ 
+    zones: ["Tulia", "Kauwi", "Musengo", "Katutu"], 
+    categories: ["public_primary", "private_primary", "secondary"] 
+  });
 });
 
+// 6. Upload Excel/CSV and Preview
 router.post("/upload-preview", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
