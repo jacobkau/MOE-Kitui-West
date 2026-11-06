@@ -32,7 +32,19 @@ router.post("/public/:slug", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
+// 5. Check if a school already submitted for a collection
+router.get("/check/:collectionId/:schoolId", async (req, res) => {
+  try {
+    const submission = await Submission.findOne({
+      collection: req.params.collectionId,
+      school: req.params.schoolId
+    });
+    // Return just the answers so the frontend can pre-fill them
+    res.json({ exists: !!submission, answers: submission ? submission.answers : null });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 // 2. Admin: Get all submissions for a collection (for Reports)
 router.get("/collection/:collectionId", requireAuth, async (req, res) => {
   try {
