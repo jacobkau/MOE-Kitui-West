@@ -25,11 +25,26 @@ router.get("/excel/:collectionId", requireAuth, async (req, res) => {
       { header: "Zone", key: "zone", width: 15 },
     ];
 
-    // Add dynamic fields and identify groups for totals
-    const groups = new Set();
+    // Add dynamic fields from the form
     collection.fields.forEach(field => {
       columns.push({ header: field.label, key: field.key, width: 15 });
-      if (field.group) groups.add(field.group);
+    });
+
+    // Add columns for the auto-calculated totals
+    const groupedFields = collection.fields.reduce((acc, field) => {
+      const group = field.group || 'General';
+      if (!acc[group]) acc[group] = [];
+      acc[group].push(field);
+      return acc;
+    }, {});
+
+    Object.keys(groupedFields).forEach(groupName => {
+      // Check if this group has number fields
+      const hasNumbers = groupedFields[groupName].some(f => f.type === 'number');
+      if (hasNumbers) {
+        const totalKey = `total_for_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        columns.push({ header: `${groupName} Total`, key: totalKey, width: 15 });
+      }
     });
 
     worksheet.columns = columns;
@@ -43,39 +58,26 @@ router.get("/excel/:collectionId", requireAuth, async (req, res) => {
         zone: sub.school?.zone || "Unknown",
       };
       
+      // Add form answers
       collection.fields.forEach(field => {
         rowData[field.key] = sub.answers[field.key] || "";
+      });
+
+      // Add the totals that were saved by the frontend
+      Object.keys(groupedFields).forEach(groupName => {
+        const totalKey = `total_for_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        if (sub.answers[totalKey] !== undefined) {
+          rowData[totalKey] = sub.answers[totalKey];
+        }
       });
 
       worksheet.addRow(rowData);
     });
 
-    // Add Totals at the bottom (e.g., Sum of all Grade 1 Boys and Grade 1 Girls)
-    if (submissions.length > 0) {
-      const totalRow = { name: "TOTAL SUM", code: "", category: "", zone: "" };
-      
-      // Initialize total row with 0s
-      collection.fields.forEach(field => {
-        totalRow[field.key] = 0;
-      });
-
-      submissions.forEach(sub => {
-        collection.fields.forEach(field => {
-          if (field.type === 'number') {
-            const val = parseFloat(sub.answers[field.key]) || 0;
-            totalRow[field.key] += val;
-          }
-        });
-      });
-
-      const addedRow = worksheet.addRow(totalRow);
-      addedRow.font = { bold: true };
-      addedRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } }; 
-    }
-
-    // Formatting Header
+    // Formatting
     worksheet.getRow(1).font = { bold: true };
 
+    // Send file
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${collection.name}.xlsx"`);
     
