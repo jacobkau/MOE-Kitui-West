@@ -40,7 +40,7 @@ router.delete("/:id", requireAuth, async (req, res) => {
 router.get("/public-list", async (req, res) => {
   try {
     const schools = await School.find({ isActive: true })
-      .select("_id name code zone")
+      .select("_id name code zone category") 
       .sort({ name: 1 });
     res.json(schools);
   } catch (err) {
