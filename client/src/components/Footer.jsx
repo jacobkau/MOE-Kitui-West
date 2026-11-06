@@ -16,7 +16,7 @@ export default function Footer() {
           {/* Right Side - Links / Info */}
           <div className="flex justify-center md:justify-end space-x-6">
             <span className="text-sm text-gray-500">
-              Support: <a href="mailto:admin@kituiwest.moe.go.ke" className="text-blue-600 hover:text-blue-800 hover:underline">admin@kituiwest.moe.go.ke</a>
+              Support: <a href="mailto:scdekituiwest@gmail.com" className="text-blue-600 hover:text-blue-800 hover:underline">scdekituiwest@gmail.com</a>
             </span>
             <span className="text-sm text-gray-400 border-l border-gray-300 pl-6">
               System Status: <span className="text-green-600 font-medium">Online</span>
