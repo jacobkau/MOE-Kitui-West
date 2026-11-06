@@ -43,9 +43,9 @@ app.get("/api/setup-admin", async (req, res) => {
       return res.send("Admin already exists! You can delete this route now.");
     }
 
-    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || "ChangeMe123!", 10);
+    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD || "SCDEMOE1331", 10);
     await User.create({
-      username: process.env.ADMIN_USERNAME || "admin",
+      username: process.env.ADMIN_USERNAME || "SCDE13331",
       passwordHash,
       role: "admin"
     });
