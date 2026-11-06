@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 
 export default function Schools() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -13,12 +14,17 @@ export default function Schools() {
   const [message, setMessage] = useState('');
   const [showImport, setShowImport] = useState(false); 
 
-  // Edit state
-  const [editingSchool, setEditingSchool] = useState(null);
+  // Add / Edit state
+  const [editingSchool, setEditingSchool] = useState(null); // null = closed, object = open
+  const [isAdding, setIsAdding] = useState(false); // true if we are adding a new school
+  const [schoolForm, setSchoolForm] = useState({
+    code: '', name: '', category: 'public_primary', zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: ''
+  });
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const initialCategory = searchParams.get('category') || 'all';
+  const [categoryFilter, setCategoryFilter] = useState(initialCategory);
 
   const fetchSchools = () => {
     api.get('/schools')
@@ -28,6 +34,13 @@ export default function Schools() {
   };
 
   useEffect(() => { fetchSchools(); }, []);
+
+  const handleCategoryChange = (e) => {
+    const val = e.target.value;
+    setCategoryFilter(val);
+    if (val === 'all') setSearchParams({}); 
+    else setSearchParams({ category: val });
+  };
 
   // --- Import Logic ---
   const handleFileUpload = async (e) => {
@@ -67,15 +80,33 @@ export default function Schools() {
     }
   };
 
-  // --- Edit Logic ---
-  const handleUpdateSchool = async (e) => {
+  // --- Add / Edit Logic ---
+  const openAddModal = () => {
+    setIsAdding(true);
+    setSchoolForm({ code: '', name: '', category: 'public_primary', zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: '' });
+    setEditingSchool({});
+  };
+
+  const openEditModal = (school) => {
+    setIsAdding(false);
+    setSchoolForm(school);
+    setEditingSchool(school);
+  };
+
+  const handleSaveSchool = async (e) => {
     e.preventDefault();
     try {
-      await api.put(`/schools/${editingSchool._id}`, editingSchool);
+      if (isAdding) {
+        // Add new school
+        await api.post('/schools/import', { schools: [schoolForm] }); // Using import endpoint as it upserts
+      } else {
+        // Update existing
+        await api.put(`/schools/${editingSchool._id}`, schoolForm);
+      }
       setEditingSchool(null);
       fetchSchools();
     } catch (err) {
-      alert('Failed to update school');
+      alert(isAdding ? 'Failed to add school' : 'Failed to update school');
     }
   };
 
@@ -88,6 +119,22 @@ export default function Schools() {
       } catch (err) {
         alert('Failed to delete school');
       }
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const confirmText = prompt("WARNING: This will permanently delete ALL schools in the database.\n\nType DELETE (all caps) to confirm.");
+    if (confirmText === 'DELETE') {
+      try {
+        // Note: You need to add this endpoint to your backend if you want this to work
+        await api.delete('/schools/delete-all');
+        alert('All schools have been deleted.');
+        fetchSchools();
+      } catch (err) {
+        alert('Failed to delete all schools. Endpoint may not exist yet.');
+      }
+    } else if (confirmText !== null) {
+      alert("Deletion cancelled. You did not type DELETE.");
     }
   };
 
@@ -105,18 +152,30 @@ export default function Schools() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Compact Header */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Schools Registry</h1>
           <p className="text-sm text-gray-500 mt-1">Manage the registered schools across the sub-county.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={handleDeleteAll}
+            className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded text-sm hover:bg-red-100 font-medium transition-colors"
+          >
+            Delete All
+          </button>
           <button 
             onClick={() => setShowImport(!showImport)} 
             className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 font-medium"
           >
             {showImport ? 'Hide Import' : '📄 Import Excel'}
+          </button>
+          <button 
+            onClick={openAddModal} 
+            className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 font-medium"
+          >
+            + Add School
           </button>
           <Link to="/directory" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 font-medium">
             Zonal Directory →
@@ -155,53 +214,55 @@ export default function Schools() {
         </div>
       )}
 
-      {/* Edit Modal Overlay */}
+      {/* Add / Edit Modal */}
       {editingSchool && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
-            <h2 className="text-xl font-bold mb-4">Edit School Data</h2>
-            <form onSubmit={handleUpdateSchool}>
+            <h2 className="text-xl font-bold mb-4">{isAdding ? 'Add New School' : 'Edit School Data'}</h2>
+            <form onSubmit={handleSaveSchool}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">School Code</label>
-                  <input required type="text" value={editingSchool.code} onChange={e => setEditingSchool({...editingSchool, code: e.target.value})} className="w-full p-2 border rounded" />
+                  <input required type="text" value={schoolForm.code} onChange={e => setSchoolForm({...schoolForm, code: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">School UPN Code</label>
-                  <input type="text" value={editingSchool.upnCode || ''} onChange={e => setEditingSchool({...editingSchool, upnCode: e.target.value})} className="w-full p-2 border rounded" />
+                  <input type="text" value={schoolForm.upnCode || ''} onChange={e => setSchoolForm({...schoolForm, upnCode: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">School Name</label>
-                  <input required type="text" value={editingSchool.name} onChange={e => setEditingSchool({...editingSchool, name: e.target.value})} className="w-full p-2 border rounded" />
+                  <input required type="text" value={schoolForm.name} onChange={e => setSchoolForm({...schoolForm, name: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
-                  <input type="text" value={editingSchool.county || ''} onChange={e => setEditingSchool({...editingSchool, county: e.target.value})} className="w-full p-2 border rounded" />
+                  <input type="text" value={schoolForm.county || ''} onChange={e => setSchoolForm({...schoolForm, county: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sub County</label>
-                  <input type="text" value={editingSchool.subCounty || ''} onChange={e => setEditingSchool({...editingSchool, subCounty: e.target.value})} className="w-full p-2 border rounded" />
+                  <input type="text" value={schoolForm.subCounty || ''} onChange={e => setSchoolForm({...schoolForm, subCounty: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input required type="text" placeholder="e.g. public_primary" value={editingSchool.category} onChange={e => setEditingSchool({...editingSchool, category: e.target.value})} className="w-full p-2 border rounded" />
+                  <input required type="text" placeholder="e.g. public_primary" value={schoolForm.category} onChange={e => setSchoolForm({...schoolForm, category: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
-                  <input required type="text" placeholder="e.g. Tulia, Kauwi" value={editingSchool.zone} onChange={e => setEditingSchool({...editingSchool, zone: e.target.value})} className="w-full p-2 border rounded" />
+                  <input required type="text" placeholder="e.g. Tulia, Kauwi" value={schoolForm.zone} onChange={e => setSchoolForm({...schoolForm, zone: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Principal / HOI Name</label>
-                  <input type="text" placeholder="e.g. John Doe" value={editingSchool.principalName || ''} onChange={e => setEditingSchool({...editingSchool, principalName: e.target.value})} className="w-full p-2 border rounded" />
+                  <input type="text" placeholder="e.g. John Doe" value={schoolForm.principalName || ''} onChange={e => setSchoolForm({...schoolForm, principalName: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Principal / HOI Phone</label>
-                  <input type="text" placeholder="e.g. 0712345678" value={editingSchool.principalPhone || ''} onChange={e => setEditingSchool({...editingSchool, principalPhone: e.target.value})} className="w-full p-2 border rounded" />
+                  <input type="text" placeholder="e.g. 0712345678" value={schoolForm.principalPhone || ''} onChange={e => setSchoolForm({...schoolForm, principalPhone: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 border-t pt-4">
                 <button type="button" onClick={() => setEditingSchool(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Changes</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">
+                  {isAdding ? 'Save New School' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>
@@ -226,13 +287,14 @@ export default function Schools() {
               />
               <select 
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
+                onChange={handleCategoryChange}
                 className="px-3 py-1.5 border rounded-md focus:ring-1 focus:ring-blue-500 text-sm bg-white"
               >
                 <option value="all">All Categories</option>
                 <option value="public_primary">Public Primary</option>
                 <option value="private_primary">Private Primary</option>
                 <option value="secondary">Secondary</option>
+                <option value="special">Special</option>
               </select>
             </div>
             <div className="text-xs text-gray-500 font-medium">
@@ -256,7 +318,6 @@ export default function Schools() {
               <tbody>
                 {filteredSchools.map((school, index) => (
                   <tr key={school._id} className="border-b hover:bg-gray-50">
-                    {/* NUMBERING COLUMN */}
                     <td className="p-3 text-sm text-gray-400 text-center font-medium">
                       {index + 1}
                     </td>
@@ -283,7 +344,7 @@ export default function Schools() {
                       )}
                     </td>
                     <td className="p-3 text-sm text-right space-x-2 align-top">
-                      <button onClick={() => setEditingSchool(school)} className="text-blue-600 hover:text-blue-800 font-medium text-xs">Edit</button>
+                      <button onClick={() => openEditModal(school)} className="text-blue-600 hover:text-blue-800 font-medium text-xs">Edit</button>
                       <button onClick={() => handleDelete(school._id, school.name)} className="text-red-500 hover:text-red-700 font-medium text-xs">Delete</button>
                     </td>
                   </tr>
