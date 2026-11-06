@@ -171,6 +171,39 @@ router.post("/import", requireAuth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+// 8. Get School Statistics for Dashboard
+router.get("/stats/dashboard", requireAuth, async (req, res) => {
+  try {
+    const totalSchools = await School.countDocuments();
+    
+    // Aggregate counts by category
+    const categories = await School.aggregate([
+      { $group: { _id: "$category", count: { $sum: 1 } } }
+    ]);
 
+    // Format categories into an easy object
+    const stats = {
+      totalSchools,
+      public_primary: 0,
+      private_primary: 0,
+      secondary: 0,
+      special: 0,
+      other: 0
+    };
+
+    categories.forEach(cat => {
+      const catName = cat._id.toLowerCase();
+      if (catName.includes("public")) stats.public_primary += cat.count;
+      else if (catName.includes("private")) stats.private_primary += cat.count;
+      else if (catName.includes("secondary") || catName.includes("junior")) stats.secondary += cat.count;
+      else if (catName.includes("special")) stats.special += cat.count;
+      else stats.other += cat.count;
+    });
+
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 export default router;
