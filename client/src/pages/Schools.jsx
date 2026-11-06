@@ -150,7 +150,6 @@ export default function Schools() {
             <form onSubmit={handleUpdateSchool}>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Basic Info */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">School Code</label>
                   <input required type="text" value={editingSchool.code} onChange={e => setEditingSchool({...editingSchool, code: e.target.value})} className="w-full p-2 border rounded" />
@@ -164,7 +163,6 @@ export default function Schools() {
                   <input required type="text" value={editingSchool.name} onChange={e => setEditingSchool({...editingSchool, name: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 
-                {/* Location */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
                   <input type="text" value={editingSchool.county || ''} onChange={e => setEditingSchool({...editingSchool, county: e.target.value})} className="w-full p-2 border rounded" />
@@ -174,26 +172,15 @@ export default function Schools() {
                   <input type="text" value={editingSchool.subCounty || ''} onChange={e => setEditingSchool({...editingSchool, subCounty: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
 
-                {/* Category & Zone */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select value={editingSchool.category} onChange={e => setEditingSchool({...editingSchool, category: e.target.value})} className="w-full p-2 border rounded">
-                    <option value="public_primary">Public Primary</option>
-                    <option value="private_primary">Private Primary</option>
-                    <option value="secondary">Secondary</option>
-                  </select>
+                  <input required type="text" placeholder="e.g. public_primary" value={editingSchool.category} onChange={e => setEditingSchool({...editingSchool, category: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
-                  <select value={editingSchool.zone} onChange={e => setEditingSchool({...editingSchool, zone: e.target.value})} className="w-full p-2 border rounded">
-                    <option value="Central">Central</option>
-                    <option value="North">North</option>
-                    <option value="South">South</option>
-                    <option value="East">East</option>
-                  </select>
+                  <input required type="text" placeholder="e.g. Tulia, Kauwi" value={editingSchool.zone} onChange={e => setEditingSchool({...editingSchool, zone: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
 
-                {/* Principal / HOI */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Principal / HOI Name</label>
                   <input type="text" placeholder="e.g. John Doe" value={editingSchool.principalName || ''} onChange={e => setEditingSchool({...editingSchool, principalName: e.target.value})} className="w-full p-2 border rounded" />
