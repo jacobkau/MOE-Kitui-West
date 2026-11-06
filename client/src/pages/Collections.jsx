@@ -7,7 +7,11 @@ export default function Collections() {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Status & Loading states
   const [togglingId, setTogglingId] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   
   // Form builder state
   const [newCollection, setNewCollection] = useState({ name: '', term: '', description: '' });
@@ -61,6 +65,7 @@ export default function Collections() {
     }
   };
 
+  // --- Toggle Open/Close ---
   const toggleStatus = async (id, currentStatus) => {
     const action = currentStatus === 'open' ? 'CLOSE' : 'REOPEN';
     if (!window.confirm(`Are you sure you want to ${action} this form? Schools will ${action === 'CLOSE' ? 'no longer be able to submit' : 'be able to submit again'}.`)) return;
@@ -76,8 +81,24 @@ export default function Collections() {
     }
   };
 
+  // --- Delete Form ---
+  const handleDeleteForm = async (id, name) => {
+    if (!window.confirm(`WARNING: Are you sure you want to delete the form "${name}"? This will also delete all associated submissions!`)) return;
+
+    setDeletingId(id);
+    try {
+      await api.delete(`/collections/${id}`);
+      fetchCollections();
+    } catch (err) {
+      alert("Failed to delete form.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // --- Export Excel ---
   const downloadExcel = async (id, name) => {
+    setExportingId(id);
     try {
       const res = await api.get(`/exports/excel/${id}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -89,6 +110,8 @@ export default function Collections() {
       link.remove();
     } catch (err) {
       alert("Export failed. Make sure there are submissions.");
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -134,29 +157,32 @@ export default function Collections() {
             <p className="text-xs text-gray-500 mb-4">Tip: Group fields together to create totals (e.g., group "Grade 1" for Grade 1 Boys and Grade 1 Girls).</p>
             
             {fields.map((field, index) => (
-              <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-end mb-3 bg-gray-50 p-3 rounded border">
+              <div key={index} className="flex flex-col md:flex-row gap-3 items-start md:items-center mb-3 bg-gray-50 p-3 rounded border">
                 <div className="flex-1 w-full">
-                  <label className="text-xs font-semibold text-gray-600">Group Name</label>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Group Name</label>
                   <input type="text" placeholder="e.g. Grade 1" value={field.group} onChange={e => updateField(index, 'group', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
                 <div className="flex-1 w-full">
-                  <label className="text-xs font-semibold text-gray-600">Label (What schools see)</label>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Label (What schools see)</label>
                   <input required type="text" placeholder="e.g. Total Girls" value={field.label} onChange={e => updateField(index, 'label', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
-                <div className="w-full md:w-40">
-                  <label className="text-xs font-semibold text-gray-600">Type</label>
-                  {/* FIXED DROPDOWN VISIBILITY */}
-                  <select value={field.type} onChange={e => updateField(index, 'type', e.target.value)} className="w-full p-2 border rounded-md text-sm bg-white block">
-                    <option value="number">Number</option>
-                    <option value="text">Text</option>
-                    <option value="textarea">Text Area</option>
-                  </select>
+                
+                {/* FIXED DATA TYPE TOGGLE */}
+                <div className="w-full md:w-auto">
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Data Type</label>
+                  <div className="flex bg-white rounded-md border overflow-hidden">
+                    <button type="button" onClick={() => updateField(index, 'type', 'number')} className={`px-3 py-2 text-xs font-medium border-r ${field.type === 'number' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>Number</button>
+                    <button type="button" onClick={() => updateField(index, 'type', 'text')} className={`px-3 py-2 text-xs font-medium border-r ${field.type === 'text' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>Text</button>
+                    <button type="button" onClick={() => updateField(index, 'type', 'textarea')} className={`px-3 py-2 text-xs font-medium ${field.type === 'textarea' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}>Long Text</button>
+                  </div>
                 </div>
-                <div className="flex items-center mb-2">
-                  <input type="checkbox" checked={field.required} onChange={e => updateField(index, 'required', e.target.checked)} className="w-4 h-4 mr-1 text-blue-600" />
+
+                <div className="flex items-center h-full pt-4">
+                  <input type="checkbox" checked={field.required} onChange={e => updateField(index, 'required', e.target.checked)} className="w-4 h-4 mr-2 text-blue-600 rounded" />
                   <span className="text-xs font-medium text-gray-700">Required</span>
                 </div>
-                <button type="button" onClick={() => removeField(index)} className="text-red-500 font-bold px-2 py-2 hover:bg-red-100 rounded-md mb-1">✕</button>
+                
+                <button type="button" onClick={() => removeField(index)} className="text-red-500 font-bold px-3 py-2 hover:bg-red-100 rounded-md mt-4 md:mt-0">✕</button>
               </div>
             ))}
             
@@ -183,13 +209,20 @@ export default function Collections() {
                     <h2 className="text-xl font-bold text-gray-800">{col.name} <span className="text-xs font-normal text-gray-600 bg-gray-100 px-2 py-1 rounded ml-2">{col.term}</span></h2>
                     <p className="text-gray-500 text-sm mt-1">{col.description}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center">
                     <button 
                       onClick={() => toggleStatus(col._id, col.status)} 
                       disabled={togglingId === col._id}
                       className={`px-4 py-1.5 rounded-md text-xs font-bold transition-colors disabled:opacity-50 ${col.status === 'open' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                     >
                       {togglingId === col._id ? 'Updating...' : col.status === 'open' ? 'CLOSE FORM' : 'REOPEN FORM'}
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteForm(col._id, col.name)}
+                      disabled={deletingId === col._id}
+                      className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {deletingId === col._id ? 'Deleting...' : 'Delete Form'}
                     </button>
                   </div>
                 </div>
@@ -204,7 +237,13 @@ export default function Collections() {
 
                 <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t">
                   <Link to={`/submissions/${col._id}`} className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-900 font-medium">View Submissions</Link>
-                  <button onClick={() => downloadExcel(col._id, col.name)} className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 font-medium">Export to Excel</button>
+                  <button 
+                    onClick={() => downloadExcel(col._id, col.name)} 
+                    disabled={exportingId === col._id}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 font-medium disabled:opacity-50 transition-colors"
+                  >
+                    {exportingId === col._id ? 'Exporting...' : 'Export to Excel'}
+                  </button>
                 </div>
               </div>
             );
