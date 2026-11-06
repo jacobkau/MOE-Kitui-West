@@ -152,52 +152,37 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // BULLETPROOF FILTER LOGIC & CATEGORY MAPPING
+  // BULLETPROOF FILTER LOGIC
   const filteredSchools = schools.filter((s) => {
-    // 1. Ensure the school has the required fields and is not missing data
-    const name = (s.name || "").toLowerCase().trim();
-    const code = (s.code || "").toLowerCase().trim();
-    const cat = (s.category || "").toLowerCase().trim();
+    // 1. Normalize data: lowercase and trim spaces
+    const name = String(s.name || "").toLowerCase().trim();
+    const code = String(s.code || "").toLowerCase().trim();
+    const cat = String(s.category || "").toLowerCase().trim();
     const search = schoolSearch.toLowerCase().trim();
     const target = collection.targetCategory || "all";
 
-    // 2. If search is empty, we allow all that match the category.
-    // If search has text, it must match the name or code.
-    const matchesSearch = search === "" || name.includes(search) || code.includes(search);
-    if (!matchesSearch) return false;
+    // 2. If user typed a search, it MUST match name or code
+    if (search !== "") {
+      if (!name.includes(search) && !code.includes(search)) {
+        return false; 
+      }
+    }
 
-    // 3. Filter based on targetCategory
-    if (target === 'all') return true; // Show everything
-    
-    if (target === 'primary') {
-      // public_primary, special
-      return cat.includes('public_primary') || cat === 'special' || cat.includes('primary');
-    }
-    
-    if (target === 'private') {
-      // private_primary
-      return cat.includes('private');
-    }
-    
-    if (target === 'secondary') {
-      // secondary
-      return cat.includes('secondary') || cat.includes('junior');
-    }
-    
-    if (target === 'special') {
-      // special
-      return cat === 'special';
-    }
-    
-    if (target === 'primary_private') {
-      // public_primary, special, private_primary
-      return cat.includes('primary') || cat.includes('private') || cat === 'special';
-    }
-    
-    if (target === 'primary_secondary') {
-      // public_primary, special, secondary
-      return cat.includes('primary') || cat.includes('secondary') || cat === 'special' || cat.includes('junior');
-    }
+    // 3. Filter based on Target Category
+    if (target === 'all') return true; 
+
+    // Helper logic for matching
+    const isPrimary = cat.includes('primary') && !cat.includes('private');
+    const isPrivate = cat.includes('private');
+    const isSecondary = cat.includes('secondary') || cat.includes('junior');
+    const isSpecial = cat.includes('special');
+
+    if (target === 'primary') return isPrimary || isSpecial;
+    if (target === 'private') return isPrivate;
+    if (target === 'secondary') return isSecondary;
+    if (target === 'special') return isSpecial;
+    if (target === 'primary_private') return isPrimary || isPrivate || isSpecial;
+    if (target === 'primary_secondary') return isPrimary || isSecondary || isSpecial;
 
     return true; // fallback
   });
