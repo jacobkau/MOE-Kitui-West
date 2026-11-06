@@ -20,7 +20,7 @@ export default function PublicForm() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [existingData, setExistingData] = useState(false);
 
-  // 1. Fetch Form Details and School List (LIVE UPDATES EVERY 8 SECONDS)
+  // 1. Fetch Form Details and School List
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -30,6 +30,12 @@ export default function PublicForm() {
         if (schools.length === 0) {
           const schoolsRes = await api.get('/schools/public-list');
           setSchools(schoolsRes.data);
+          
+          // 🔍 DEBUG LOGS
+          console.log("=== FORM TARGET CATEGORY ===");
+          console.log(formRes.data.targetCategory);
+          console.log("=== FIRST 5 SCHOOLS FROM DB ===");
+          console.log(schoolsRes.data.slice(0, 5).map(s => ({ name: s.name, category: s.category })));
         }
       } catch (err) {
         setMessage({ type: 'error', text: err.response?.data?.message || 'This form is no longer available.' });
@@ -154,24 +160,23 @@ export default function PublicForm() {
 
   // BULLETPROOF FILTER LOGIC
   const filteredSchools = schools.filter((s) => {
-    // 1. Normalize data: lowercase and trim spaces
     const name = String(s.name || "").toLowerCase().trim();
     const code = String(s.code || "").toLowerCase().trim();
     const cat = String(s.category || "").toLowerCase().trim();
     const search = schoolSearch.toLowerCase().trim();
     const target = collection.targetCategory || "all";
 
-    // 2. If user typed a search, it MUST match name or code
+    // 🔍 LIVE FILTER DEBUG LOG (This prints for every school checked)
+    // console.log(`Checking: ${name} | Cat: ${cat} | Target: ${target}`);
+
     if (search !== "") {
       if (!name.includes(search) && !code.includes(search)) {
         return false; 
       }
     }
 
-    // 3. Filter based on Target Category
     if (target === 'all') return true; 
 
-    // Helper logic for matching
     const isPrimary = cat.includes('primary') && !cat.includes('private');
     const isPrivate = cat.includes('private');
     const isSecondary = cat.includes('secondary') || cat.includes('junior');
@@ -184,7 +189,7 @@ export default function PublicForm() {
     if (target === 'primary_private') return isPrimary || isPrivate || isSpecial;
     if (target === 'primary_secondary') return isPrimary || isSecondary || isSpecial;
 
-    return true; // fallback
+    return true; 
   });
 
   return (
@@ -236,7 +241,10 @@ export default function PublicForm() {
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-red-500">No schools found matching your search.</div>
+                  <div className="p-4 text-center text-red-500">
+                    No schools found matching your search. <br/>
+                    <span className="text-xs">(Debug: Target is {collection.targetCategory})</span>
+                  </div>
                 )}
               </div>
             )}
