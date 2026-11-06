@@ -25,7 +25,11 @@ export default function Collections() {
 
   const fetchCollections = () => {
     api.get('/collections')
-      .then(res => setCollections(res.data))
+      .then(res => {
+        // Sort by createdAt descending (newest first)
+        const sorted = res.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setCollections(sorted);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -139,7 +143,7 @@ export default function Collections() {
     }
   };
 
-  // SAFE FILTER LOGIC (Prevents toLowerCase crash if data is missing)
+  // SAFE FILTER LOGIC
   const filteredCollections = collections.filter(col => {
     const name = (col.name || "").toLowerCase();
     const term = (col.term || "").toLowerCase();
@@ -169,7 +173,7 @@ export default function Collections() {
       </div>
 
       {!isCreating && (
-        <div className="mb-6">
+        <div className="mb-4">
           <input type="text" placeholder="Search forms by name or term..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" />
         </div>
       )}
@@ -187,12 +191,11 @@ export default function Collections() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Term / Year</label>
                 <input required type="text" placeholder="e.g. 2025-T1" value={newCollection.term} onChange={e => setNewCollection({...newCollection, term: e.target.value})} className="w-full p-2 border rounded-md" />
               </div>
-              {/* UPDATED TARGET AUDIENCE FIELD */}
               <div className="md:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
                 <select value={newCollection.targetCategory} onChange={e => setNewCollection({...newCollection, targetCategory: e.target.value})} className="w-full p-2 border rounded-md bg-white">
-                  <option value="all">All Schools (Public, Private, Secondary, Special)</option>
-                  <option value="primary">Primary Only (Public & Special)</option>
+                  <option value="all">All Schools</option>
+                  <option value="primary">Primary Only</option>
                   <option value="private">Private Only</option>
                   <option value="secondary">Secondary Only</option>
                   <option value="special">Special Only</option>
@@ -217,7 +220,6 @@ export default function Collections() {
                   <label className="text-xs font-semibold text-gray-600 block mb-1">Label</label>
                   <input required type="text" placeholder="e.g. Total Girls" value={field.label} onChange={e => updateField(index, 'label', e.target.value)} className="w-full p-2 border rounded-md text-sm" />
                 </div>
-                
                 <div className="w-full md:w-auto">
                   <label className="text-xs font-semibold text-gray-600 block mb-1">Type</label>
                   <div className="flex bg-white rounded-md border overflow-hidden">
@@ -246,55 +248,58 @@ export default function Collections() {
       )}
 
       {loading ? <p>Loading forms...</p> : (
-        <div className="grid gap-4">
-          {filteredCollections.map(col => {
+        <div className="flex flex-col gap-2">
+          {filteredCollections.map((col, index) => {
             const publicLink = `${window.location.origin}/form/${col.publicSlug}`;
+            const dateStr = new Date(col.createdAt).toLocaleDateString();
+            
             return (
-              <div key={col._id} className="bg-white p-5 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-blue-500">
-                <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4">
+              <div key={col._id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-blue-300 transition-colors">
+                
+                {/* Left Side: Info */}
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500">
+                    {index + 1}
+                  </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">{col.name} <span className="text-xs font-normal text-gray-600 bg-gray-100 px-2 py-1 rounded ml-2">{col.term}</span></h2>
-                    <p className="text-gray-500 text-sm mt-1">{col.description}</p>
-                    <div className="mt-2 flex gap-2">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium border">
-                        Target: {col.targetCategory?.replace(/_/g, ' & ').toUpperCase() || 'ALL'}
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-gray-800">{col.name}</h2>
+                      <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{col.term}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${col.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {col.status.toUpperCase()}
                       </span>
                     </div>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <button onClick={() => handleEditClick(col)} className="text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-md text-xs font-bold transition-colors">Edit</button>
-                    <button onClick={() => toggleStatus(col._id, col.status)} disabled={togglingId === col._id} className={`px-4 py-1.5 rounded-md text-xs font-bold disabled:opacity-50 ${col.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {togglingId === col._id ? 'Updating...' : col.status === 'open' ? 'CLOSE FORM' : 'REOPEN FORM'}
-                    </button>
-                    <button onClick={() => handleDeleteForm(col._id, col.name)} disabled={deletingId === col._id} className="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-xs font-bold disabled:opacity-50">
-                      {deletingId === col._id ? 'Deleting...' : 'Delete'}
-                    </button>
+                    <div className="flex gap-3 text-xs text-gray-500 mt-1">
+                      <span>Created: {dateStr}</span>
+                      <span>Target: {col.targetCategory?.replace(/_/g, ' & ').toUpperCase() || 'ALL'}</span>
+                      <span className="font-bold text-blue-600">{col.submissionCount || 0} Submissions</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded-md mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                  <div>
-                    <p className="text-xs text-blue-800 font-bold mb-1">PUBLIC LINK FOR SCHOOLS:</p>
-                    <code className="text-sm text-blue-900 select-all break-all">{publicLink}</code>
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(publicLink); alert('Link copied!'); }} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm hover:bg-blue-700 font-medium whitespace-nowrap">Copy Link</button>
+                {/* Right Side: Actions */}
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                  <button onClick={() => { navigator.clipboard.writeText(publicLink); alert('Link copied!'); }} className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1.5 rounded font-medium border border-blue-200">Copy Link</button>
+                  <Link to={`/submissions/${col._id}`} className="text-xs text-gray-700 hover:bg-gray-100 px-2 py-1.5 rounded font-medium border border-gray-300">Submissions</Link>
+                  <button onClick={() => downloadExcel(col._id, col.name)} disabled={exportingId === col._id} className="text-xs text-green-700 hover:bg-green-50 px-2 py-1.5 rounded font-medium border border-green-200 disabled:opacity-50">
+                    {exportingId === col._id ? '...' : 'Excel'}
+                  </button>
+                  
+                  <div className="w-px h-6 bg-gray-300 mx-1 hidden md:block"></div>
+                  
+                  <button onClick={() => handleEditClick(col)} className="text-xs text-blue-600 hover:bg-blue-50 px-2 py-1.5 rounded font-medium">Edit</button>
+                  <button onClick={() => toggleStatus(col._id, col.status)} disabled={togglingId === col._id} className={`text-xs px-2 py-1.5 rounded font-medium disabled:opacity-50 ${col.status === 'open' ? 'text-orange-600 hover:bg-orange-50' : 'text-green-600 hover:bg-green-50'}`}>
+                    {togglingId === col._id ? '...' : col.status === 'open' ? 'Close' : 'Reopen'}
+                  </button>
+                  <button onClick={() => handleDeleteForm(col._id, col.name)} disabled={deletingId === col._id} className="text-xs text-red-500 hover:bg-red-50 px-2 py-1.5 rounded font-medium disabled:opacity-50">
+                    {deletingId === col._id ? '...' : 'Delete'}
+                  </button>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t">
-                  <div className="flex gap-3">
-                    <Link to={`/submissions/${col._id}`} className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-900 font-medium">View Submissions</Link>
-                    <button onClick={() => downloadExcel(col._id, col.name)} disabled={exportingId === col._id} className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 font-medium disabled:opacity-50">
-                      {exportingId === col._id ? 'Exporting...' : 'Export to Excel'}
-                    </button>
-                  </div>
-                  <span className="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                    {col.submissionCount || 0} Submissions
-                  </span>
-                </div>
               </div>
             );
           })}
-          {filteredCollections.length === 0 && <p className="text-gray-500">No forms found matching your search.</p>}
+          {filteredCollections.length === 0 && <p className="text-gray-500 text-center py-8">No forms found.</p>}
         </div>
       )}
     </div>
