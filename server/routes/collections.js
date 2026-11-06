@@ -63,6 +63,25 @@ router.patch("/:id/status", requireAuth, async (req, res) => {
   }
 });
 
+
+// 6. Update an existing Collection (Form)
+router.put("/:id", requireAuth, async (req, res) => {
+  try {
+    const { name, term, description, fields } = req.body;
+    
+    // We do NOT update the publicSlug so the link remains the same
+    const collection = await Collection.findByIdAndUpdate(
+      req.params.id,
+      { name, term, description, fields },
+      { new: true }
+    );
+    
+    res.json(collection);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // 5. Delete a Collection
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
