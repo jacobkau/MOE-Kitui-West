@@ -74,8 +74,6 @@ router.get("/", requireAuth, async (req, res) => {
 router.get("/meta", (req, res) => {
   res.json({ zones: ZONES, categories: CATEGORIES });
 });
-
-// 6. Upload Excel/CSV and Preview
 router.post("/upload-preview", requireAuth, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -90,33 +88,38 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
     data.forEach((row, index) => {
       const rowNum = index + 2;
       
-      // Helper to safely extract strings
+      // SMART GETTER: Ignores case and spaces in headers
       const getVal = (keys) => {
-        for (let k of keys) {
-          if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
+        const cleanKeys = keys.map(k => k.toLowerCase().replace(/\s/g, ''));
+        for (let rowKey of Object.keys(row)) {
+          const cleanRowKey = rowKey.toLowerCase().replace(/\s/g, '');
+          if (cleanKeys.includes(cleanRowKey) && row[rowKey] !== undefined && row[rowKey] !== null) {
+            return String(row[rowKey]).trim();
+          }
         }
         return "";
       };
 
-      const code = getVal(["code", "Code", "CODE"]);
-      const name = getVal(["name", "Name", "NAME"]);
-      const category = getVal(["category", "Category", "CATEGORY"]).toLowerCase();
-      const zone = getVal(["zone", "Zone", "ZONE"]);
+      const code = getVal(["code", "schoolcode", "school code"]);
+      const name = getVal(["name", "schoolname", "school name"]);
+      const category = getVal(["category", "type", "schooltype"]).toLowerCase().replace(/\s/g, '_');
+      const zone = getVal(["zone", "location"]).replace(/\s/g, '');
       
       // New Fields
       const upnCode = getVal(["upnCode", "UPN Code", "UPN", "upn"]);
-      const county = getVal(["county", "County", "COUNTY"]) || "Kitui";
-      const subCounty = getVal(["subCounty", "Sub County", "SubCounty"]) || "Kitui West";
+      const county = getVal(["county", "County"]) || "Kitui";
+      const subCounty = getVal(["subCounty", "Sub County", "subcounty"]) || "Kitui West";
       const principalName = getVal(["principalName", "Principal", "HOI", "Headteacher"]);
       const principalPhone = getVal(["principalPhone", "Phone", "Phone Number", "Contact"]);
 
-      if (!code || !name || !category || !zone) {
-        errors.push(`Row ${rowNum}: Missing required fields (code, name, category, zone).`);
-      } else if (!CATEGORIES.includes(category)) {
-        errors.push(`Row ${rowNum}: Invalid category '${category}'. Use: public_primary, private_primary, secondary.`);
-      } else if (!ZONES.includes(zone)) {
-        errors.push(`Row ${rowNum}: Invalid zone '${zone}'. Use: Central, North, South, East.`);
-      } else {
+      // Better error messages
+      if (!code) errors.push(`Row ${rowNum}: Missing 'Code'`);
+      else if (!name) errors.push(`Row ${rowNum}: Missing 'Name'`);
+      else if (!category) errors.push(`Row ${rowNum}: Missing 'Category'`);
+      else if (!zone) errors.push(`Row ${rowNum}: Missing 'Zone'`);
+      else if (!CATEGORIES.includes(category)) errors.push(`Row ${rowNum}: Invalid category '${category}'`);
+      else if (!ZONES.includes(zone)) errors.push(`Row ${rowNum}: Invalid zone '${zone}' (Must be Tulia, Kauwi, Musengo, or Katutu)`);
+      else {
         parsed.push({ 
           code, name, category, zone, 
           upnCode, county, subCounty, principalName, principalPhone 
@@ -129,7 +132,6 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
     res.status(500).json({ message: "Failed to parse file. Ensure it is a valid Excel/CSV." });
   }
 });
-
 // 7. Confirm Import
 router.post("/import", requireAuth, async (req, res) => {
   const { schools } = req.body;
