@@ -93,7 +93,8 @@ export default function Schools() {
   const filteredSchools = schools.filter(school => {
     const matchesSearch = 
       school.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      school.code.toLowerCase().includes(searchTerm.toLowerCase());
+      school.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (school.upnCode && school.upnCode.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesCategory = categoryFilter === 'all' || school.category === categoryFilter;
     
@@ -101,7 +102,7 @@ export default function Schools() {
   });
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Schools Registry</h1>
         <div className="flex gap-4">
@@ -115,7 +116,9 @@ export default function Schools() {
       {/* Import Section */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8 border-t-4 border-t-blue-500">
         <h2 className="text-lg font-bold mb-2">Bulk Import Schools (Excel / CSV)</h2>
-        <p className="text-sm text-gray-600 mb-4">Upload a file with columns: <strong>code, name, category, zone</strong>.</p>
+        <p className="text-sm text-gray-600 mb-4">
+          Upload a file with columns: <strong>code, name, category, zone, upnCode, county, subCounty, principalName, principalPhone</strong>.
+        </p>
         
         {!previewData ? (
           <input type="file" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
@@ -141,19 +144,37 @@ export default function Schools() {
 
       {/* Edit Modal Overlay */}
       {editingSchool && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Edit School</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl my-8">
+            <h2 className="text-xl font-bold mb-4">Edit School Data</h2>
             <form onSubmit={handleUpdateSchool}>
-              <div className="space-y-4 mb-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Basic Info */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">School Code</label>
                   <input required type="text" value={editingSchool.code} onChange={e => setEditingSchool({...editingSchool, code: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">School UPN Code</label>
+                  <input type="text" value={editingSchool.upnCode || ''} onChange={e => setEditingSchool({...editingSchool, upnCode: e.target.value})} className="w-full p-2 border rounded" />
+                </div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">School Name</label>
                   <input required type="text" value={editingSchool.name} onChange={e => setEditingSchool({...editingSchool, name: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
+                
+                {/* Location */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">County</label>
+                  <input type="text" value={editingSchool.county || ''} onChange={e => setEditingSchool({...editingSchool, county: e.target.value})} className="w-full p-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sub County</label>
+                  <input type="text" value={editingSchool.subCounty || ''} onChange={e => setEditingSchool({...editingSchool, subCounty: e.target.value})} className="w-full p-2 border rounded" />
+                </div>
+
+                {/* Category & Zone */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select value={editingSchool.category} onChange={e => setEditingSchool({...editingSchool, category: e.target.value})} className="w-full p-2 border rounded">
@@ -171,10 +192,21 @@ export default function Schools() {
                     <option value="East">East</option>
                   </select>
                 </div>
+
+                {/* Principal / HOI */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Principal / HOI Name</label>
+                  <input type="text" placeholder="e.g. John Doe" value={editingSchool.principalName || ''} onChange={e => setEditingSchool({...editingSchool, principalName: e.target.value})} className="w-full p-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Principal / HOI Phone</label>
+                  <input type="text" placeholder="e.g. 0712345678" value={editingSchool.principalPhone || ''} onChange={e => setEditingSchool({...editingSchool, principalPhone: e.target.value})} className="w-full p-2 border rounded" />
+                </div>
               </div>
-              <div className="flex justify-end gap-2">
+
+              <div className="flex justify-end gap-2 border-t pt-4">
                 <button type="button" onClick={() => setEditingSchool(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium">Save Changes</button>
               </div>
             </form>
           </div>
@@ -192,7 +224,7 @@ export default function Schools() {
             <div className="flex gap-4 w-full sm:w-auto">
               <input 
                 type="text" 
-                placeholder="Search by name or code..." 
+                placeholder="Search by name, code, or UPN..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full sm:w-72 text-sm"
@@ -214,27 +246,43 @@ export default function Schools() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <div className="overflow-x-auto max-h-[650px] overflow-y-auto">
             <table className="w-full text-left relative">
               <thead className="bg-gray-100 border-b sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="p-4 font-semibold text-gray-600 text-sm">Code</th>
-                  <th className="p-4 font-semibold text-gray-600 text-sm">Name</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Code / UPN</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">School Name & Location</th>
                   <th className="p-4 font-semibold text-gray-600 text-sm">Category</th>
-                  <th className="p-4 font-semibold text-gray-600 text-sm">Zone</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Zone / Principal</th>
                   <th className="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredSchools.map(school => (
                   <tr key={school._id} className="border-b hover:bg-gray-50">
-                    <td className="p-4 text-sm font-medium">{school.code}</td>
-                    <td className="p-4 text-sm font-bold text-gray-800">{school.name}</td>
-                    <td className="p-4 text-sm capitalize">{school.category.replace('_', ' ')}</td>
-                    <td className="p-4 text-sm">
-                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">{school.zone}</span>
+                    <td className="p-4 text-sm font-medium align-top">
+                      {school.code}
+                      {school.upnCode && <div className="text-xs text-gray-400 mt-1">UPN: {school.upnCode}</div>}
                     </td>
-                    <td className="p-4 text-sm text-right space-x-3">
+                    <td className="p-4 text-sm font-bold text-gray-800 align-top">
+                      {school.name}
+                      <div className="text-xs text-gray-500 font-normal mt-1">{school.county} County, {school.subCounty}</div>
+                    </td>
+                    <td className="p-4 text-sm align-top">
+                      <span className="capitalize px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                        {school.category.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm align-top">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">{school.zone}</span>
+                      {school.principalName && (
+                        <div className="text-xs text-gray-500 mt-2">
+                          <span className="font-semibold text-gray-700">HOI:</span> {school.principalName}
+                          {school.principalPhone && <div>{school.principalPhone}</div>}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 text-sm text-right space-x-3 align-top">
                       <button onClick={() => setEditingSchool(school)} className="text-blue-600 hover:text-blue-800 font-medium">Edit</button>
                       <button onClick={() => handleDelete(school._id, school.name)} className="text-red-500 hover:text-red-700 font-medium">Delete</button>
                     </td>
