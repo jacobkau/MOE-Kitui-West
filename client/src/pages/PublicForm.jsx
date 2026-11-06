@@ -18,8 +18,6 @@ export default function PublicForm() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSuccess, setIsSuccess] = useState(false);
-  
-  // NEW: Track if they are editing existing data
   const [existingData, setExistingData] = useState(false);
 
   // 1. Fetch Form Details and School List
@@ -28,7 +26,6 @@ export default function PublicForm() {
       try {
         const formRes = await api.get(`/collections/public/${slug}`);
         setCollection(formRes.data);
-
         const schoolsRes = await api.get('/schools/public-list');
         setSchools(schoolsRes.data);
       } catch (err) {
@@ -40,7 +37,6 @@ export default function PublicForm() {
     fetchData();
   }, [slug]);
 
-  // Handle clicking outside of the dropdown to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -60,23 +56,20 @@ export default function PublicForm() {
     setSchoolSearch(`${school.name} (${school.code})`);
     setIsDropdownOpen(false);
     
-    // Check if data exists
     try {
       const checkRes = await api.get(`/submissions/check/${collection._id}/${school._id}`);
       if (checkRes.data.exists) {
         setExistingData(true);
-        // Pre-fill the answers
         setAnswers(checkRes.data.answers || {});
       } else {
         setExistingData(false);
-        setAnswers({}); // Clear form for new entry
+        setAnswers({}); 
       }
     } catch (err) {
       console.error("Error checking existing data", err);
     }
   };
 
-  // Submit the form
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedSchool) {
@@ -87,10 +80,30 @@ export default function PublicForm() {
     setSubmitting(true);
     setMessage({ type: '', text: '' });
 
+    // Prepare data to submit: Include the auto-calculated totals
+    const dataToSubmit = { ...answers };
+    
+    const groupedFields = collection.fields.reduce((acc, field) => {
+      const group = field.group || 'General';
+      if (!acc[group]) acc[group] = [];
+      acc[group].push(field);
+      return acc;
+    }, {});
+
+    // Loop through groups and add the calculated total to the payload
+    Object.entries(groupedFields).forEach(([groupName, fields]) => {
+      const numberFields = fields.filter(f => f.type === 'number');
+      if (numberFields.length > 0) {
+        const groupTotal = numberFields.reduce((sum, f) => sum + (Number(answers[f.key]) || 0), 0);
+        const totalKey = `total_for_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        dataToSubmit[totalKey] = groupTotal;
+      }
+    });
+
     try {
       await api.post(`/submissions/public/${slug}`, {
         schoolId: selectedSchool,
-        answers: answers,
+        answers: dataToSubmit,
       });
       setIsSuccess(true);
       window.scrollTo(0, 0); 
@@ -103,8 +116,7 @@ export default function PublicForm() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-medium text-gray-500">Loading form...</div>;
 
-  // If form is closed or not found
-  if (!collection || message.type === 'error' && !collection) {
+  if (!collection || (message.type === 'error' && !collection)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full">
@@ -116,7 +128,6 @@ export default function PublicForm() {
     );
   }
 
-  // Success Screen
   if (isSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -132,7 +143,6 @@ export default function PublicForm() {
     );
   }
 
-  // Group fields by their "group" property
   const groupedFields = collection.fields.reduce((acc, field) => {
     const group = field.group || 'General';
     if (!acc[group]) acc[group] = [];
@@ -140,28 +150,21 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // BULLETPROOF SEARCH LOGIC
   const filteredSchools = schools.filter((s) => {
     const search = schoolSearch.toLowerCase().trim();
-    const name = s.name.toLowerCase();
-    const code = s.code.toLowerCase();
-    const zone = s.zone.toLowerCase();
-    return name.includes(search) || code.includes(search) || zone.includes(search);
+    return s.name.toLowerCase().includes(search) || s.code.toLowerCase().includes(search);
   });
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
         
-        {/* Header */}
         <div className="bg-blue-900 rounded-t-xl p-6 md:p-8 text-white shadow-md relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-blue-200 text-sm font-bold tracking-wider mb-2 uppercase">Ministry of Education - Kitui West</p>
             <h1 className="text-2xl md:text-3xl font-bold mb-2">{collection.name}</h1>
             <p className="text-blue-100 font-medium">Term: {collection.term}</p>
-            {collection.description && <p className="mt-3 text-sm bg-blue-800/50 inline-block px-3 py-1 rounded">{collection.description}</p>}
           </div>
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 bg-blue-800 rounded-full opacity-50 blur-2xl"></div>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-gray-100 p-4 md:p-8 border-x border-b border-gray-200 rounded-b-xl shadow-sm">
@@ -172,72 +175,51 @@ export default function PublicForm() {
             </div>
           )}
 
-          {/* STEP 1: Searchable School Dropdown */}
           <div className="mb-8 bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500 relative" ref={dropdownRef}>
             <label className="block text-gray-800 font-bold mb-2">Search and Select Your School <span className="text-red-500">*</span></label>
-            
             <div className="relative">
               <input
                 type="text"
-                placeholder="Type full school name (e.g. Kitui High School)..."
+                placeholder="Type full school name..."
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
                   setIsDropdownOpen(true);
                   setSelectedSchool(''); 
-                  setExistingData(false); // Reset check
+                  setExistingData(false);
                 }}
                 onFocus={() => setIsDropdownOpen(true)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10 text-lg"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10 text-lg font-medium"
                 autoComplete="off" 
                 required={!selectedSchool} 
               />
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              </div>
             </div>
-
-            {/* Dropdown Results */}
             {isDropdownOpen && (
               <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
                 {filteredSchools.length > 0 ? (
                   filteredSchools.map(s => (
-                    <div 
-                      key={s._id} 
-                      onClick={() => handleSelectSchool(s)}
-                      className="p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors flex justify-between items-center"
-                    >
-                      <div>
-                        <div className="font-bold text-gray-800 text-lg">{s.name}</div>
-                        <div className="text-xs text-gray-500 font-medium">{s.code} • {s.zone} Zone</div>
-                      </div>
-                      <div className="text-blue-500 text-sm font-bold">Select</div>
+                    <div key={s._id} onClick={() => handleSelectSchool(s)} className="p-3 border-b cursor-pointer hover:bg-blue-50">
+                      <div className="font-bold text-gray-800">{s.name}</div>
+                      <div className="text-xs text-gray-500">{s.code} • {s.zone} Zone</div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-red-500 font-medium text-sm">
-                    No schools found matching "{schoolSearch}". Check your spelling.
-                  </div>
+                  <div className="p-4 text-center text-red-500">No schools found.</div>
                 )}
               </div>
             )}
-            
             {selectedSchool && (
               <div className="mt-2">
-                <p className="text-sm text-green-600 font-bold flex items-center gap-1">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                  Selected Successfully
-                </p>
+                <p className="text-sm text-green-600 font-bold flex items-center gap-1">✓ Selected Successfully</p>
                 {existingData && (
-                  <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium flex items-center gap-2">
-                    <span className="text-lg">⚠️</span> You have already submitted data for this form. The form below has been pre-filled with your previous submission. Submitting again will overwrite the old data.
+                  <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium">
+                    ⚠️ Pre-filled with previous submission. Submitting again will overwrite it.
                   </p>
                 )}
               </div>
             )}
           </div>
 
-          {/* STEP 2: Dynamic Form Fields grouped in Cards */}
           <div className="space-y-6">
             {Object.entries(groupedFields).map(([groupName, fields]) => {
               const numberFields = fields.filter(f => f.type === 'number');
@@ -245,74 +227,44 @@ export default function PublicForm() {
 
               return (
                 <div key={groupName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="bg-blue-50 px-5 py-3 border-b border-gray-200 flex justify-between items-center">
+                  <div className="bg-blue-50 px-5 py-3 border-b border-gray-200">
                     <h2 className="text-lg font-bold text-blue-900">{groupName}</h2>
-                    {numberFields.length > 0 && (
-                      <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full">
-                        Total: {groupTotal}
-                      </span>
-                    )}
                   </div>
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {fields.map((field) => (
-                      <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">
-                          {field.label} {field.required && <span className="text-red-500">*</span>}
-                        </label>
-
-                        {field.type === 'select' ? (
-                          <select
-                            required={field.required}
-                            value={answers[field.key] || ''}
-                            onChange={(e) => handleInputChange(field.key, e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                          >
-                            <option value="">Select option</option>
-                            {field.options?.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        ) : field.type === 'textarea' ? (
-                          <textarea
-                            required={field.required}
-                            value={answers[field.key] || ''}
-                            onChange={(e) => handleInputChange(field.key, e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                            rows="3"
-                          />
-                        ) : (
-                          <input
-                            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                            required={field.required}
-                            value={answers[field.key] || ''}
-                            onChange={(e) => handleInputChange(field.key, e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-white"
-                            placeholder={field.type === 'number' ? '0' : 'Enter details'}
-                          />
-                        )}
+                  <div className="p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
+                      {fields.map((field) => (
+                        <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">
+                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                          </label>
+                          {field.type === 'textarea' ? (
+                            <textarea required={field.required} value={answers[field.key] || ''} onChange={(e) => handleInputChange(field.key, e.target.value)} className="w-full p-2 border rounded-md" rows="2" />
+                          ) : (
+                            <input type={field.type === 'number' ? 'number' : 'text'} required={field.required} value={answers[field.key] || ''} onChange={(e) => handleInputChange(field.key, e.target.value)} className="w-full p-2 border rounded-md" placeholder={field.type === 'number' ? '0' : ''} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* TOTAL BADGE AT THE BOTTOM */}
+                    {numberFields.length > 0 && (
+                      <div className="flex justify-end pt-3 border-t border-gray-100">
+                        <span className="bg-blue-100 text-blue-800 text-sm font-bold px-4 py-1.5 rounded-full">
+                          Auto-Calculated Total: {groupTotal}
+                        </span>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* STEP 3: Submit */}
           <div className="mt-8 pt-6 border-t border-gray-300 flex justify-end">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full md:w-auto bg-blue-600 text-white px-10 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold text-lg shadow-md transition-colors"
-            >
-              {submitting ? 'Submitting Data...' : (existingData ? 'Update Existing Data' : 'Submit Data')}
+            <button type="submit" disabled={submitting} className="w-full md:w-auto bg-blue-600 text-white px-10 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold text-lg shadow-md">
+              {submitting ? 'Submitting...' : (existingData ? 'Update Data' : 'Submit Data')}
             </button>
           </div>
         </form>
-        
-        <div className="text-center mt-6 text-xs text-gray-500">
-          Powered by Kitui West Sub-County Data Portal
-        </div>
       </div>
     </div>
   );
