@@ -8,31 +8,46 @@ export default function Submissions() {
   const [collection, setCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
-  const [exportingId, setExportingId] = useState(null); // New state for export loading
+  const [exportingId, setExportingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 1. Function to fetch data
   const fetchData = async () => {
     try {
+      // We only need to fetch collection once, but fetching it again is harmless
       const colRes = await api.get('/collections');
       const currentCol = colRes.data.find(c => c._id === collectionId);
       setCollection(currentCol);
+      
       const subRes = await api.get(`/submissions/collection/${collectionId}`);
       setSubmissions(subRes.data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch data", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, [collectionId]);
+  // 2. Setup Live Polling (every 8 seconds)
+  useEffect(() => {
+    // Fetch immediately on load
+    fetchData();
+
+    // Then set an interval to fetch every 8000 milliseconds (8 seconds)
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 8000);
+
+    // Cleanup the interval when the user leaves the page
+    return () => clearInterval(intervalId);
+  }, [collectionId]);
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this submission?")) {
       setDeletingId(id);
       try {
         await api.delete(`/submissions/${id}`);
-        fetchData();
+        fetchData(); // Instantly refresh after delete
       } catch (err) {
         alert("Failed to delete.");
       } finally {
@@ -41,7 +56,6 @@ export default function Submissions() {
     }
   };
 
-  // --- Export Excel ---
   const downloadExcel = async () => {
     setExportingId(collectionId);
     try {
@@ -73,12 +87,22 @@ export default function Submissions() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Submissions: {collection.name}</h1>
-          <p className="text-sm text-gray-500">Term: {collection.term} • Total Received: {submissions.length}</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-sm text-gray-500">Term: {collection.term} • Total Received: <strong className="text-gray-800">{submissions.length}</strong></p>
+            
+            {/* Live Indicator */}
+            <span className="flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-bold px-2 py-1 rounded border border-green-200">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              LIVE
+            </span>
+          </div>
         </div>
         <Link to="/collections" className="text-blue-600 hover:underline font-medium text-sm">← Back to Forms</Link>
       </div>
 
-      {/* Toolbar (Search & Export) */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <input 
           type="text" 
@@ -122,6 +146,11 @@ export default function Submissions() {
                   <td className="p-4">
                     <span className="font-bold text-gray-800 block text-sm">{sub.school?.name}</span>
                     <span className="text-xs text-gray-500">{sub.school?.code} • {sub.school?.zone} Zone</span>
+                    <div className="mt-1">
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(sub.updatedAt).toLocaleTimeString()}
+                      </span>
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col gap-2">
@@ -135,7 +164,6 @@ export default function Submissions() {
                           return acc;
                         }, {})
                       ).map(([groupName, fields]) => {
-                        // Check if we saved a total for this group
                         const totalKey = `total_for_${groupName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
                         const savedTotal = sub.answers[totalKey];
 
