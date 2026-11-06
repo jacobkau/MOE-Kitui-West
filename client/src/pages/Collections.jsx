@@ -139,10 +139,13 @@ export default function Collections() {
     }
   };
 
-  const filteredCollections = collections.filter(col => 
-    col.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    col.term.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // SAFE FILTER LOGIC (Prevents toLowerCase crash if data is missing)
+  const filteredCollections = collections.filter(col => {
+    const name = (col.name || "").toLowerCase();
+    const term = (col.term || "").toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return name.includes(search) || term.includes(search);
+  });
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -167,7 +170,7 @@ export default function Collections() {
 
       {!isCreating && (
         <div className="mb-6">
-          <input type="text" placeholder="Search forms..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" />
+          <input type="text" placeholder="Search forms by name or term..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full max-w-md px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" />
         </div>
       )}
 
@@ -184,14 +187,15 @@ export default function Collections() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Term / Year</label>
                 <input required type="text" placeholder="e.g. 2025-T1" value={newCollection.term} onChange={e => setNewCollection({...newCollection, term: e.target.value})} className="w-full p-2 border rounded-md" />
               </div>
-              {/* NEW TARGET AUDIENCE FIELD */}
+              {/* UPDATED TARGET AUDIENCE FIELD */}
               <div className="md:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Target Audience</label>
                 <select value={newCollection.targetCategory} onChange={e => setNewCollection({...newCollection, targetCategory: e.target.value})} className="w-full p-2 border rounded-md bg-white">
-                  <option value="all">All Schools</option>
-                  <option value="primary">Primary Only</option>
+                  <option value="all">All Schools (Public, Private, Secondary, Special)</option>
+                  <option value="primary">Primary Only (Public & Special)</option>
                   <option value="private">Private Only</option>
                   <option value="secondary">Secondary Only</option>
+                  <option value="special">Special Only</option>
                   <option value="primary_private">Primary & Private Only</option>
                   <option value="primary_secondary">Primary & Secondary Only</option>
                 </select>
@@ -252,7 +256,9 @@ export default function Collections() {
                     <h2 className="text-xl font-bold text-gray-800">{col.name} <span className="text-xs font-normal text-gray-600 bg-gray-100 px-2 py-1 rounded ml-2">{col.term}</span></h2>
                     <p className="text-gray-500 text-sm mt-1">{col.description}</p>
                     <div className="mt-2 flex gap-2">
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium border">Target: {col.targetCategory.replace('_', ' & ')}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-medium border">
+                        Target: {col.targetCategory?.replace(/_/g, ' & ').toUpperCase() || 'ALL'}
+                      </span>
                     </div>
                   </div>
                   <div className="flex gap-2 items-center">
@@ -288,7 +294,7 @@ export default function Collections() {
               </div>
             );
           })}
-          {filteredCollections.length === 0 && <p className="text-gray-500">No forms found.</p>}
+          {filteredCollections.length === 0 && <p className="text-gray-500">No forms found matching your search.</p>}
         </div>
       )}
     </div>
