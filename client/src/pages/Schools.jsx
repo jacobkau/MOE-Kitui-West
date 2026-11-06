@@ -7,6 +7,10 @@ export default function Schools() {
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // Tab State
+  const initialTab = searchParams.get('tab') || 'primary';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   // Import state
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);
@@ -15,16 +19,14 @@ export default function Schools() {
   const [showImport, setShowImport] = useState(false); 
 
   // Add / Edit state
-  const [editingSchool, setEditingSchool] = useState(null); // null = closed, object = open
-  const [isAdding, setIsAdding] = useState(false); // true if we are adding a new school
+  const [editingSchool, setEditingSchool] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
   const [schoolForm, setSchoolForm] = useState({
     code: '', name: '', category: 'public_primary', zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: ''
   });
 
-  // Search & Filter state
+  // Search State
   const [searchTerm, setSearchTerm] = useState('');
-  const initialCategory = searchParams.get('category') || 'all';
-  const [categoryFilter, setCategoryFilter] = useState(initialCategory);
 
   const fetchSchools = () => {
     api.get('/schools')
@@ -35,11 +37,10 @@ export default function Schools() {
 
   useEffect(() => { fetchSchools(); }, []);
 
-  const handleCategoryChange = (e) => {
-    const val = e.target.value;
-    setCategoryFilter(val);
-    if (val === 'all') setSearchParams({}); 
-    else setSearchParams({ category: val });
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+    setSearchTerm('');
   };
 
   // --- Import Logic ---
@@ -83,7 +84,11 @@ export default function Schools() {
   // --- Add / Edit Logic ---
   const openAddModal = () => {
     setIsAdding(true);
-    setSchoolForm({ code: '', name: '', category: 'public_primary', zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: '' });
+    setSchoolForm({ 
+      code: '', name: '', 
+      category: activeTab === 'primary' ? 'public_primary' : 'secondary', 
+      zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: '' 
+    });
     setEditingSchool({});
   };
 
@@ -97,10 +102,8 @@ export default function Schools() {
     e.preventDefault();
     try {
       if (isAdding) {
-        // Add new school
-        await api.post('/schools/import', { schools: [schoolForm] }); // Using import endpoint as it upserts
+        await api.post('/schools/import', { schools: [schoolForm] }); 
       } else {
-        // Update existing
         await api.put(`/schools/${editingSchool._id}`, schoolForm);
       }
       setEditingSchool(null);
@@ -112,7 +115,7 @@ export default function Schools() {
 
   // --- Delete Logic ---
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete ${name}? This cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
       try {
         await api.delete(`/schools/${id}`);
         fetchSchools();
@@ -123,31 +126,35 @@ export default function Schools() {
   };
 
   const handleDeleteAll = async () => {
-    const confirmText = prompt("WARNING: This will permanently delete ALL schools in the database.\n\nType DELETE (all caps) to confirm.");
+    const confirmText = prompt(`WARNING: This will delete ALL ${activeTab.toUpperCase()} schools.\n\nType DELETE to confirm.`);
     if (confirmText === 'DELETE') {
       try {
-        // Note: You need to add this endpoint to your backend if you want this to work
-        await api.delete('/schools/delete-all');
-        alert('All schools have been deleted.');
+        // We will just delete by category on the backend
+        await api.delete(`/schools/delete-all?category=${activeTab}`); 
+        alert(`All ${activeTab} schools have been deleted.`);
         fetchSchools();
       } catch (err) {
-        alert('Failed to delete all schools. Endpoint may not exist yet.');
+        alert('Failed to delete. Endpoint may not exist yet.');
       }
-    } else if (confirmText !== null) {
-      alert("Deletion cancelled. You did not type DELETE.");
     }
   };
 
   // --- Filter Logic ---
   const filteredSchools = schools.filter(school => {
+    // 1. Filter by Tab Category
+    const isPrimaryTab = school.category.includes('primary');
+    const isSecondaryTab = school.category.includes('secondary') || school.category.includes('junior');
+    
+    if (activeTab === 'primary' && !isPrimaryTab) return false;
+    if (activeTab === 'secondary' && !isSecondaryTab) return false;
+
+    // 2. Filter by Search
     const matchesSearch = 
       school.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       school.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (school.upnCode && school.upnCode.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = categoryFilter === 'all' || school.category === categoryFilter;
-    
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   return (
@@ -156,25 +163,16 @@ export default function Schools() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Schools Registry</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage the registered schools across the sub-county.</p>
+          <p className="text-sm text-gray-500 mt-1">Manage registered schools categorized by level.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button 
-            onClick={handleDeleteAll}
-            className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded text-sm hover:bg-red-100 font-medium transition-colors"
-          >
-            Delete All
+          <button onClick={handleDeleteAll} className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded text-sm hover:bg-red-100 font-medium transition-colors">
+            Delete All {activeTab === 'primary' ? 'Primary' : 'Secondary'}
           </button>
-          <button 
-            onClick={() => setShowImport(!showImport)} 
-            className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 font-medium"
-          >
+          <button onClick={() => setShowImport(!showImport)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 font-medium">
             {showImport ? 'Hide Import' : '📄 Import Excel'}
           </button>
-          <button 
-            onClick={openAddModal} 
-            className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 font-medium"
-          >
+          <button onClick={openAddModal} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 font-medium">
             + Add School
           </button>
           <Link to="/directory" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 font-medium">
@@ -183,12 +181,28 @@ export default function Schools() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex border-b mb-4">
+        <button
+          onClick={() => handleTabChange('primary')}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'primary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Primary & Private Schools
+        </button>
+        <button
+          onClick={() => handleTabChange('secondary')}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'secondary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Secondary Schools
+        </button>
+      </div>
+
       {/* Collapsible Import Section */}
       {showImport && (
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 border-t-4 border-t-blue-500">
-          <h2 className="text-sm font-bold mb-2">Bulk Import Schools (Excel / CSV)</h2>
+          <h2 className="text-sm font-bold mb-2">Bulk Import {activeTab === 'primary' ? 'Primary' : 'Secondary'} Schools</h2>
           <p className="text-xs text-gray-600 mb-3">
-            Columns: <strong>code, name, category, zone, upnCode, county, subCounty, principalName, principalPhone</strong>.
+            Ensure your Excel file contains the correct categories (e.g., <strong>{activeTab === 'primary' ? 'public_primary, private_primary' : 'secondary, junior_secondary'}</strong>).
           </p>
           
           {!previewData ? (
@@ -243,7 +257,7 @@ export default function Schools() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input required type="text" placeholder="e.g. public_primary" value={schoolForm.category} onChange={e => setSchoolForm({...schoolForm, category: e.target.value})} className="w-full p-2 border rounded" />
+                  <input required type="text" placeholder="e.g. public_primary, secondary" value={schoolForm.category} onChange={e => setSchoolForm({...schoolForm, category: e.target.value})} className="w-full p-2 border rounded" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
@@ -275,34 +289,19 @@ export default function Schools() {
       ) : (
         <div className="bg-white shadow-sm rounded-lg border border-gray-200">
           
-          {/* Search & Filter Toolbar */}
-          <div className="p-3 border-b bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-3 rounded-t-lg">
-            <div className="flex gap-3 w-full sm:w-auto">
-              <input 
-                type="text" 
-                placeholder="Search by name, code, or UPN..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-3 py-1.5 border rounded-md focus:ring-1 focus:ring-blue-500 w-full sm:w-64 text-sm"
-              />
-              <select 
-                value={categoryFilter}
-                onChange={handleCategoryChange}
-                className="px-3 py-1.5 border rounded-md focus:ring-1 focus:ring-blue-500 text-sm bg-white"
-              >
-                <option value="all">All Categories</option>
-                <option value="public_primary">Public Primary</option>
-                <option value="private_primary">Private Primary</option>
-                <option value="secondary">Secondary</option>
-                <option value="special">Special</option>
-              </select>
-            </div>
+          <div className="p-3 border-b bg-gray-50 flex justify-between items-center rounded-t-lg">
+            <input 
+              type="text" 
+              placeholder="Search by name, code, or UPN..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-1.5 border rounded-md w-full sm:w-64 text-sm"
+            />
             <div className="text-xs text-gray-500 font-medium">
-              Showing {filteredSchools.length} of {schools.length} schools
+              Showing {filteredSchools.length} schools
             </div>
           </div>
 
-          {/* Table */}
           <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
             <table className="w-full text-left relative">
               <thead className="bg-gray-100 border-b sticky top-0 z-10 shadow-sm">
@@ -355,7 +354,7 @@ export default function Schools() {
           
           {filteredSchools.length === 0 && (
             <p className="p-6 text-center text-gray-500 text-sm">
-              No schools match your search criteria.
+              No schools found for this category.
             </p>
           )}
         </div>
