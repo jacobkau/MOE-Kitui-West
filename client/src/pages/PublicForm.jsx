@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import api from '../api/axios';
 
 export default function PublicForm() {
@@ -7,11 +7,17 @@ export default function PublicForm() {
   const [collection, setCollection] = useState(null);
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
+  
+  // Searchable Dropdown State
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [isSuccess, setIsSuccess] = useState(false); // New success state
+  const [isSuccess, setIsSuccess] = useState(false);
 
   // 1. Fetch Form Details and School List
   useEffect(() => {
@@ -31,8 +37,25 @@ export default function PublicForm() {
     fetchData();
   }, [slug]);
 
+  // Handle clicking outside of the dropdown to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleInputChange = (key, value) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSelectSchool = (school) => {
+    setSelectedSchool(school._id);
+    setSchoolSearch(`${school.code} - ${school.name} (${school.zone} Zone)`);
+    setIsDropdownOpen(false);
   };
 
   // Submit the form
@@ -52,7 +75,7 @@ export default function PublicForm() {
         answers: answers,
       });
       setIsSuccess(true);
-      window.scrollTo(0, 0); // Scroll to top to see the success message
+      window.scrollTo(0, 0); 
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.message || 'Submission failed. Please try again.' });
     } finally {
@@ -99,6 +122,12 @@ export default function PublicForm() {
     return acc;
   }, {});
 
+  // Filter schools based on search input
+  const filteredSchools = schools.filter(s => 
+    s.name.toLowerCase().includes(schoolSearch.toLowerCase()) || 
+    s.code.toLowerCase().includes(schoolSearch.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-3xl mx-auto">
@@ -111,7 +140,6 @@ export default function PublicForm() {
             <p className="text-blue-100 font-medium">Term: {collection.term}</p>
             {collection.description && <p className="mt-3 text-sm bg-blue-800/50 inline-block px-3 py-1 rounded">{collection.description}</p>}
           </div>
-          {/* Decorative background shape */}
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 bg-blue-800 rounded-full opacity-50 blur-2xl"></div>
         </div>
 
@@ -123,22 +151,58 @@ export default function PublicForm() {
             </div>
           )}
 
-          {/* STEP 1: Select School */}
-          <div className="mb-8 bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500">
-            <label className="block text-gray-800 font-bold mb-2">Select Your School <span className="text-red-500">*</span></label>
-            <select
-              value={selectedSchool}
-              onChange={(e) => setSelectedSchool(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-            >
-              <option value="">-- Search and select your school --</option>
-              {schools.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.code} - {s.name} ({s.zone} Zone)
-                </option>
-              ))}
-            </select>
+          {/* STEP 1: Searchable School Dropdown */}
+          <div className="mb-8 bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500 relative" ref={dropdownRef}>
+            <label className="block text-gray-800 font-bold mb-2">Search and Select Your School <span className="text-red-500">*</span></label>
+            
+            {/* Input Field */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Type school name or code..."
+                value={schoolSearch}
+                onChange={(e) => {
+                  setSchoolSearch(e.target.value);
+                  setIsDropdownOpen(true);
+                  setSelectedSchool(''); // Reset selected if they start typing again
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10"
+                required={!selectedSchool} // Only required if they haven't picked one
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
+            </div>
+
+            {/* Dropdown Results */}
+            {isDropdownOpen && (
+              <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                {filteredSchools.length > 0 ? (
+                  filteredSchools.map(s => (
+                    <div 
+                      key={s._id} 
+                      onClick={() => handleSelectSchool(s)}
+                      className="p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="font-bold text-gray-800">{s.name}</div>
+                      <div className="text-xs text-gray-500">{s.code} • {s.zone} Zone</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    No schools found matching "{schoolSearch}"
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {selectedSchool && (
+              <p className="text-xs text-green-600 mt-2 font-medium flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                School Selected
+              </p>
+            )}
           </div>
 
           {/* STEP 2: Dynamic Form Fields grouped in Cards */}
