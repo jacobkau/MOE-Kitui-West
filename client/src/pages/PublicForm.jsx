@@ -27,13 +27,11 @@ export default function PublicForm() {
         const formRes = await api.get(`/collections/public/${slug}`);
         setCollection(formRes.data);
         
-        // Only fetch schools once to save bandwidth, unless they are empty
         if (schools.length === 0) {
           const schoolsRes = await api.get('/schools/public-list');
           setSchools(schoolsRes.data);
         }
       } catch (err) {
-        // If the form gets closed while they are filling it, show the error
         setMessage({ type: 'error', text: err.response?.data?.message || 'This form is no longer available.' });
         setCollection(null);
       } finally {
@@ -42,11 +40,9 @@ export default function PublicForm() {
     };
 
     fetchData();
-    // Setup live polling
     const intervalId = setInterval(fetchData, 8000);
-
     return () => clearInterval(intervalId);
-  }, [slug]); // Removed 'schools' from dependency to avoid infinite loops
+  }, [slug]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -124,7 +120,6 @@ export default function PublicForm() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-medium text-gray-500">Loading form...</div>;
 
-  // If form is closed or not found
   if (!collection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -157,31 +152,54 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // SAFE FILTER LOGIC (Prevents the toLowerCase crash)
+  // BULLETPROOF FILTER LOGIC & CATEGORY MAPPING
   const filteredSchools = schools.filter((s) => {
+    // 1. Ensure the school has the required fields and is not missing data
+    const name = (s.name || "").toLowerCase().trim();
+    const code = (s.code || "").toLowerCase().trim();
+    const cat = (s.category || "").toLowerCase().trim();
     const search = schoolSearch.toLowerCase().trim();
-    const name = (s.name || "").toLowerCase();
-    const code = (s.code || "").toLowerCase();
-    const cat = (s.category || "").toLowerCase();
     const target = collection.targetCategory || "all";
 
-    // 1. Check if matches search
-    const matchesSearch = name.includes(search) || code.includes(search);
+    // 2. If search is empty, we allow all that match the category.
+    // If search has text, it must match the name or code.
+    const matchesSearch = search === "" || name.includes(search) || code.includes(search);
     if (!matchesSearch) return false;
 
-    // 2. Check if matches target category
-    let matchesTarget = false;
-    if (target === 'all') matchesTarget = true;
-    else if (target === 'primary' && cat.includes('primary')) matchesTarget = true;
-    else if (target === 'private' && cat.includes('private')) matchesTarget = true;
-    else if (target === 'secondary' && (cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
-    else if (target === 'primary_private' && (cat.includes('primary') || cat.includes('private'))) matchesTarget = true;
-    else if (target === 'primary_secondary' && (cat.includes('primary') || cat.includes('secondary') || cat.includes('junior'))) matchesTarget = true;
+    // 3. Filter based on targetCategory
+    if (target === 'all') return true; // Show everything
     
-    // If the database is missing a category but target is 'all', allow it. 
-    // Otherwise, strictly enforce the target.
-    if (target === 'all') return true;
-    return matchesTarget;
+    if (target === 'primary') {
+      // public_primary, special
+      return cat.includes('public_primary') || cat === 'special' || cat.includes('primary');
+    }
+    
+    if (target === 'private') {
+      // private_primary
+      return cat.includes('private');
+    }
+    
+    if (target === 'secondary') {
+      // secondary
+      return cat.includes('secondary') || cat.includes('junior');
+    }
+    
+    if (target === 'special') {
+      // special
+      return cat === 'special';
+    }
+    
+    if (target === 'primary_private') {
+      // public_primary, special, private_primary
+      return cat.includes('primary') || cat.includes('private') || cat === 'special';
+    }
+    
+    if (target === 'primary_secondary') {
+      // public_primary, special, secondary
+      return cat.includes('primary') || cat.includes('secondary') || cat === 'special' || cat.includes('junior');
+    }
+
+    return true; // fallback
   });
 
   return (
@@ -209,7 +227,7 @@ export default function PublicForm() {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Type full school name..."
+                placeholder="Click to view schools or type to search..."
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
