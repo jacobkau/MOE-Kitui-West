@@ -15,6 +15,10 @@ export default function Schools() {
   // Edit state
   const [editingSchool, setEditingSchool] = useState(null);
 
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
   const fetchSchools = () => {
     api.get('/schools')
       .then(res => setSchools(res.data))
@@ -84,6 +88,17 @@ export default function Schools() {
       }
     }
   };
+
+  // --- Filter Logic ---
+  const filteredSchools = schools.filter(school => {
+    const matchesSearch = 
+      school.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      school.code.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = categoryFilter === 'all' || school.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -166,39 +181,74 @@ export default function Schools() {
         </div>
       )}
 
-      {/* Schools Table */}
+      {/* Schools Table Section */}
       {loading ? (
         <p>Loading schools...</p>
       ) : (
-        <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Code</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Name</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Category</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm">Zone</th>
-                <th className="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schools.map(school => (
-                <tr key={school._id} className="border-b hover:bg-gray-50">
-                  <td className="p-4 text-sm font-medium">{school.code}</td>
-                  <td className="p-4 text-sm font-bold text-gray-800">{school.name}</td>
-                  <td className="p-4 text-sm capitalize">{school.category.replace('_', ' ')}</td>
-                  <td className="p-4 text-sm">
-                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">{school.zone}</span>
-                  </td>
-                  <td className="p-4 text-sm text-right space-x-3">
-                    <button onClick={() => setEditingSchool(school)} className="text-blue-600 hover:text-blue-800 font-medium">Edit</button>
-                    <button onClick={() => handleDelete(school._id, school.name)} className="text-red-500 hover:text-red-700 font-medium">Delete</button>
-                  </td>
+        <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+          
+          {/* Search & Filter Toolbar */}
+          <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-t-lg">
+            <div className="flex gap-4 w-full sm:w-auto">
+              <input 
+                type="text" 
+                placeholder="Search by name or code..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full sm:w-72 text-sm"
+              />
+              <select 
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+              >
+                <option value="all">All Categories</option>
+                <option value="public_primary">Public Primary</option>
+                <option value="private_primary">Private Primary</option>
+                <option value="secondary">Secondary</option>
+              </select>
+            </div>
+            <div className="text-sm text-gray-500 font-medium">
+              Showing {filteredSchools.length} of {schools.length} schools
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table className="w-full text-left relative">
+              <thead className="bg-gray-100 border-b sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Code</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Name</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Category</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm">Zone</th>
+                  <th className="p-4 font-semibold text-gray-600 text-sm text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {schools.length === 0 && <p className="p-8 text-center text-gray-500">No schools found.</p>}
+              </thead>
+              <tbody>
+                {filteredSchools.map(school => (
+                  <tr key={school._id} className="border-b hover:bg-gray-50">
+                    <td className="p-4 text-sm font-medium">{school.code}</td>
+                    <td className="p-4 text-sm font-bold text-gray-800">{school.name}</td>
+                    <td className="p-4 text-sm capitalize">{school.category.replace('_', ' ')}</td>
+                    <td className="p-4 text-sm">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">{school.zone}</span>
+                    </td>
+                    <td className="p-4 text-sm text-right space-x-3">
+                      <button onClick={() => setEditingSchool(school)} className="text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                      <button onClick={() => handleDelete(school._id, school.name)} className="text-red-500 hover:text-red-700 font-medium">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {filteredSchools.length === 0 && (
+            <p className="p-8 text-center text-gray-500">
+              No schools match your search criteria.
+            </p>
+          )}
         </div>
       )}
     </div>
