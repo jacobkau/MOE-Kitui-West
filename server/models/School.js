@@ -10,6 +10,11 @@ const schoolSchema = new mongoose.Schema(
     category: { type: String, enum: Categories, required: true },
     zone: { type: String, enum: Zones, required: true },
     isActive: { type: Boolean, default: true },
+    upnCode: { type: String, trim: true },                
+    county: { type: String, trim: true, default: "Kitui" },
+    subCounty: { type: String, trim: true, default: "Kitui West" }, 
+    principalName: { type: String, trim: true },          
+    principalPhone: { type: String, trim: true },         
   },
   { timestamps: true }
 );
