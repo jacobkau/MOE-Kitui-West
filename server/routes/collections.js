@@ -62,7 +62,7 @@ router.patch("/:id/status", requireAuth, async (req, res) => {
   }
 });
 
-// 5. Update an existing Collection (Form)
+// 5. Update an existing Collection 
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { name, term, description, fields, targetCategory } = req.body;
@@ -82,6 +82,21 @@ router.delete("/:id", requireAuth, async (req, res) => {
   try {
     await Collection.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 7. Get Dashboard Stats 
+router.get("/stats/dashboard", requireAuth, async (req, res) => {
+  try {
+    // Get total collections
+    const collectionsCount = await Collection.countDocuments();
+    
+    // Get total submissions (using MongoDB's fast count)
+    const submissionsCount = await Submission.countDocuments();
+
+    res.json({ collectionsCount, submissionsCount });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
