@@ -1,10 +1,28 @@
 import { Router } from "express";
 import crypto from "crypto";
 import Collection from "../models/Collection.js";
+import Submission from "../models/Submission.js"; 
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 const generateSlug = () => crypto.randomBytes(4).toString("hex");
+
+// ==========================================
+// IMPORTANT: STATS ROUTE MUST BE AT THE TOP
+// ==========================================
+router.get("/stats/dashboard", requireAuth, async (req, res) => {
+  try {
+    const collectionsCount = await Collection.countDocuments();
+    const submissionsCount = await Submission.countDocuments();
+    res.json({ collectionsCount, submissionsCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ==========================================
+// REGULAR ROUTES
+// ==========================================
 
 // 1. Create a new Collection
 router.post("/", requireAuth, async (req, res) => {
@@ -24,8 +42,6 @@ router.get("/", requireAuth, async (req, res) => {
   try {
     const collections = await Collection.find().sort({ createdAt: -1 });
     
-    // Attach submission counts to each collection dynamically
-    const Submission = (await import("../models/Submission.js")).default;
     const collectionsWithCounts = await Promise.all(collections.map(async (col) => {
       const count = await Submission.countDocuments({ collection: col._id });
       return { ...col.toObject(), submissionCount: count };
@@ -49,6 +65,10 @@ router.get("/public/:slug", async (req, res) => {
   }
 });
 
+// ==========================================
+// DYNAMIC ROUTES (MUST BE AT THE BOTTOM)
+// ==========================================
+
 // 4. Toggle Open/Close status
 router.patch("/:id/status", requireAuth, async (req, res) => {
   try {
@@ -62,18 +82,7 @@ router.patch("/:id/status", requireAuth, async (req, res) => {
   }
 });
 
-
-router.get("/stats/dashboard", requireAuth, async (req, res) => {
-  try {
-    const collectionsCount = await Collection.countDocuments();
-    const submissionsCount = await Submission.countDocuments();
-    res.json({ collectionsCount, submissionsCount });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// 5. Update an existing Collection 
+// 5. Update an existing Collection (Form)
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const { name, term, description, fields, targetCategory } = req.body;
@@ -91,23 +100,9 @@ router.put("/:id", requireAuth, async (req, res) => {
 // 6. Delete a Collection
 router.delete("/:id", requireAuth, async (req, res) => {
   try {
+    await Submission.deleteMany({ collection: req.params.id });
     await Collection.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// 7. Get Dashboard Stats 
-router.get("/stats/dashboard", requireAuth, async (req, res) => {
-  try {
-    // Get total collections
-    const collectionsCount = await Collection.countDocuments();
-    
-    // Get total submissions (using MongoDB's fast count)
-    const submissionsCount = await Submission.countDocuments();
-
-    res.json({ collectionsCount, submissionsCount });
+    res.json({ message: "Deleted form and all submissions" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
