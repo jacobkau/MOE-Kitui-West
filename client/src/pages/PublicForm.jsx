@@ -19,6 +19,9 @@ export default function PublicForm() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isSuccess, setIsSuccess] = useState(false);
   const [existingData, setExistingData] = useState(false);
+  
+  // To store the selected school name for the success screen
+  const [selectedSchoolName, setSelectedSchoolName] = useState('');
 
   // 1. Fetch Form Details and School List
   useEffect(() => {
@@ -60,6 +63,7 @@ export default function PublicForm() {
 
   const handleSelectSchool = async (school) => {
     setSelectedSchool(school._id);
+    setSelectedSchoolName(school.name);
     setSchoolSearch(`${school.name} (${school.code})`);
     setIsDropdownOpen(false);
 
@@ -132,14 +136,69 @@ export default function PublicForm() {
     );
   }
 
+  // Professional Success Screen
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full border-t-4 border-green-500">
-          <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">{existingData ? 'Data Updated!' : 'Data Submitted!'}</h1>
-          <p className="text-gray-600 mb-6">Thank you. Your data has been received by the Sub-County office.</p>
-          <button onClick={() => window.location.reload()} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-md font-medium hover:bg-gray-200">Submit Another</button>
+      <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-200 text-center">
+            
+            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+              <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {existingData ? 'Data Updated Successfully' : 'Data Submitted Successfully'}
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">
+              The Sub-County office has received your data.
+            </p>
+
+            {/* Official Receipt Box */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-8 text-left border border-gray-200">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b border-gray-200 pb-2">Submission Receipt</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">School:</span>
+                  <span className="text-sm font-semibold text-gray-900">{selectedSchoolName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Form:</span>
+                  <span className="text-sm font-semibold text-gray-900">{collection.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Date:</span>
+                  <span className="text-sm font-semibold text-gray-900">{new Date().toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Time:</span>
+                  <span className="text-sm font-semibold text-gray-900">{new Date().toLocaleTimeString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                onClick={() => window.location.reload()} 
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-900 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Submit Another Response
+              </button>
+              <button 
+                onClick={() => window.close()} 
+                className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                Close Window
+              </button>
+            </div>
+
+          </div>
+          
+          <p className="mt-8 text-center text-xs text-gray-500">
+            Ministry of Education - Kitui West Sub-County
+          </p>
         </div>
       </div>
     );
@@ -152,7 +211,6 @@ export default function PublicForm() {
     return acc;
   }, {});
 
-  // BULLETPROOF FILTER LOGIC
   const filteredSchools = schools.filter((s) => {
     const name = String(s.name || "").toLowerCase().trim();
     const code = String(s.code || "").toLowerCase().trim();
