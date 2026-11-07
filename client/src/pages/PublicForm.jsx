@@ -179,6 +179,7 @@ export default function PublicForm() {
               </div>
             </div>
 
+            {/* FIXED BUTTONS */}
             <div className="space-y-3">
               <button 
                 onClick={() => window.location.reload()} 
@@ -187,10 +188,17 @@ export default function PublicForm() {
                 Submit Another Response
               </button>
               <button 
-                onClick={() => window.close()} 
+                onClick={() => {
+                  // Browsers block window.close() if not opened by a script.
+                  // Instead, we just reset the form view locally.
+                  setIsSuccess(false);
+                  setSelectedSchool('');
+                  setSchoolSearch('');
+                  setAnswers({});
+                }} 
                 className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
-                Close Window
+                Done (Go Back)
               </button>
             </div>
 
@@ -363,14 +371,24 @@ export default function PublicForm() {
             })}
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button with Loading State */}
           <div className="mt-10 pt-6 border-t border-gray-200 flex justify-end">
             <button 
               type="submit" 
               disabled={submitting} 
-              className="w-full md:w-auto bg-blue-900 text-white px-10 py-3 rounded-md hover:bg-blue-800 disabled:opacity-50 font-bold text-md shadow-sm transition-colors"
+              className="w-full md:w-auto bg-blue-900 text-white px-10 py-3 rounded-md hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-md shadow-sm transition-colors flex items-center justify-center gap-2"
             >
-              {submitting ? 'Submitting...' : (existingData ? 'Update Existing Data' : 'Submit Data')}
+              {submitting ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Submitting Data...
+                </>
+              ) : (
+                existingData ? 'Update Existing Data' : 'Submit Data'
+              )}
             </button>
           </div>
         </form>
