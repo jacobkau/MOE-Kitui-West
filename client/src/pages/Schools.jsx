@@ -6,7 +6,7 @@ export default function Schools() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Tab State
   const initialTab = searchParams.get('tab') || 'primary';
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -84,10 +84,14 @@ export default function Schools() {
   // --- Add / Edit Logic ---
   const openAddModal = () => {
     setIsAdding(true);
+    
+    // Auto-select category based on active tab
+    let defaultCat = 'public_primary';
+    if (activeTab === 'secondary') defaultCat = 'secondary';
+    if (activeTab === 'special') defaultCat = 'special';
+
     setSchoolForm({ 
-      code: '', name: '', 
-      category: activeTab === 'primary' ? 'public_primary' : 'secondary', 
-      zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: '' 
+      code: '', name: '', category: defaultCat, zone: '', upnCode: '', county: 'Kitui', subCounty: 'Kitui West', principalName: '', principalPhone: '' 
     });
     setEditingSchool({});
   };
@@ -129,7 +133,6 @@ export default function Schools() {
     const confirmText = prompt(`WARNING: This will delete ALL ${activeTab.toUpperCase()} schools.\n\nType DELETE to confirm.`);
     if (confirmText === 'DELETE') {
       try {
-        // We will just delete by category on the backend
         await api.delete(`/schools/delete-all?category=${activeTab}`); 
         alert(`All ${activeTab} schools have been deleted.`);
         fetchSchools();
@@ -141,20 +144,28 @@ export default function Schools() {
 
   // --- Filter Logic ---
   const filteredSchools = schools.filter(school => {
+    const cat = (school.category || "").toLowerCase();
+
     // 1. Filter by Tab Category
-    const isPrimaryTab = school.category.includes('primary');
-    const isSecondaryTab = school.category.includes('secondary') || school.category.includes('junior');
-    
-    if (activeTab === 'primary' && !isPrimaryTab) return false;
-    if (activeTab === 'secondary' && !isSecondaryTab) return false;
+    if (activeTab === 'primary') {
+      // Show only primary, but NOT private (assuming private has its own tab? If not, keep private here)
+      // Based on your previous logic, Primary tab included private.
+      if (!cat.includes('primary') && !cat.includes('private')) return false;
+    } 
+    else if (activeTab === 'secondary') {
+      if (!cat.includes('secondary') && !cat.includes('junior')) return false;
+    }
+    else if (activeTab === 'special') {
+      if (!cat.includes('special')) return false;
+    }
 
     // 2. Filter by Search
-    const matchesSearch = 
-      school.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      school.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (school.upnCode && school.upnCode.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    return matchesSearch;
+    const search = searchTerm.toLowerCase();
+    const name = (school.name || "").toLowerCase();
+    const code = (school.code || "").toLowerCase();
+    const upn = (school.upnCode || "").toLowerCase();
+
+    return name.includes(search) || code.includes(search) || upn.includes(search);
   });
 
   return (
@@ -167,7 +178,7 @@ export default function Schools() {
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={handleDeleteAll} className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded text-sm hover:bg-red-100 font-medium transition-colors">
-            Delete All {activeTab === 'primary' ? 'Primary' : 'Secondary'}
+            Delete All {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
           </button>
           <button onClick={() => setShowImport(!showImport)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 font-medium">
             {showImport ? 'Hide Import' : '📄 Import Excel'}
@@ -182,29 +193,35 @@ export default function Schools() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b mb-4">
+      <div className="flex border-b mb-4 overflow-x-auto">
         <button
           onClick={() => handleTabChange('primary')}
-          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'primary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'primary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          Primary & Private Schools
+          Primary & Private
         </button>
         <button
           onClick={() => handleTabChange('secondary')}
-          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'secondary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'secondary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           Secondary Schools
+        </button>
+        <button
+          onClick={() => handleTabChange('special')}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'special' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Special Schools
         </button>
       </div>
 
       {/* Collapsible Import Section */}
       {showImport && (
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 border-t-4 border-t-blue-500">
-          <h2 className="text-sm font-bold mb-2">Bulk Import {activeTab === 'primary' ? 'Primary' : 'Secondary'} Schools</h2>
+          <h2 className="text-sm font-bold mb-2">Bulk Import {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Schools</h2>
           <p className="text-xs text-gray-600 mb-3">
-            Ensure your Excel file contains the correct categories (e.g., <strong>{activeTab === 'primary' ? 'public_primary, private_primary' : 'secondary, junior_secondary'}</strong>).
+            Ensure your Excel file contains the correct categories.
           </p>
-          
+
           {!previewData ? (
             <input type="file" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
           ) : (
@@ -257,7 +274,17 @@ export default function Schools() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input required type="text" placeholder="e.g. public_primary, secondary" value={schoolForm.category} onChange={e => setSchoolForm({...schoolForm, category: e.target.value})} className="w-full p-2 border rounded" />
+                  <select 
+                    required 
+                    value={schoolForm.category} 
+                    onChange={e => setSchoolForm({...schoolForm, category: e.target.value})} 
+                    className="w-full p-2 border rounded bg-white"
+                  >
+                    <option value="public_primary">Public Primary</option>
+                    <option value="private_primary">Private Primary</option>
+                    <option value="secondary">Secondary</option>
+                    <option value="special">Special</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
@@ -288,7 +315,7 @@ export default function Schools() {
         <p>Loading schools...</p>
       ) : (
         <div className="bg-white shadow-sm rounded-lg border border-gray-200">
-          
+
           <div className="p-3 border-b bg-gray-50 flex justify-between items-center rounded-t-lg">
             <input 
               type="text" 
@@ -351,7 +378,7 @@ export default function Schools() {
               </tbody>
             </table>
           </div>
-          
+
           {filteredSchools.length === 0 && (
             <p className="p-6 text-center text-gray-500 text-sm">
               No schools found for this category.
