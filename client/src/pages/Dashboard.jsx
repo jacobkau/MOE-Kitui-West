@@ -69,7 +69,9 @@ export default function Dashboard() {
       {/* CATEGORIES BREAKDOWN */}
       <h3 className="text-lg font-bold text-gray-800 mb-4">School Categories Breakdown</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Link to="/schools?category=public_primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-400 hover:shadow-md transition-all group">
+        
+        {/* Public Primary Link */}
+        <Link to="/schools?tab=primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-blue-600">Public Primary</p>
             <p className="text-2xl font-bold text-gray-800">{stats?.public_primary || 0}</p>
@@ -77,7 +79,8 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg group-hover:bg-blue-100">P</div>
         </Link>
         
-        <Link to="/schools?category=private_primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-green-400 hover:shadow-md transition-all group">
+        {/* Private Primary Link */}
+        <Link to="/schools?tab=private" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-green-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-green-600">Private Primary</p>
             <p className="text-2xl font-bold text-gray-800">{stats?.private_primary || 0}</p>
@@ -85,7 +88,8 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-lg group-hover:bg-green-100">Pv</div>
         </Link>
 
-        <Link to="/schools?category=secondary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-purple-400 hover:shadow-md transition-all group">
+        {/* Secondary Link */}
+        <Link to="/schools?tab=secondary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-purple-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-purple-600">Secondary Schools</p>
             <p className="text-2xl font-bold text-gray-800">{stats?.secondary || 0}</p>
@@ -93,7 +97,8 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-lg group-hover:bg-purple-100">S</div>
         </Link>
 
-        <Link to="/schools?category=special" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-orange-400 hover:shadow-md transition-all group">
+        {/* Special Link */}
+        <Link to="/schools?tab=special" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-orange-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-orange-500">Special Schools</p>
             <p className="text-2xl font-bold text-gray-800">{stats?.special || 0}</p>
