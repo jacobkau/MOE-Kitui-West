@@ -87,6 +87,7 @@ export default function Schools() {
     
     // Auto-select category based on active tab
     let defaultCat = 'public_primary';
+    if (activeTab === 'private') defaultCat = 'private_primary';
     if (activeTab === 'secondary') defaultCat = 'secondary';
     if (activeTab === 'special') defaultCat = 'special';
 
@@ -148,10 +149,13 @@ export default function Schools() {
 
     // 1. Filter by Tab Category
     if (activeTab === 'primary') {
-      // Show only primary, but NOT private (assuming private has its own tab? If not, keep private here)
-      // Based on your previous logic, Primary tab included private.
-      if (!cat.includes('primary') && !cat.includes('private')) return false;
+      if (!cat.includes('public_primary') && !cat.includes('primary')) return false;
+      // Make sure it doesn't include private
+      if (cat.includes('private')) return false;
     } 
+    else if (activeTab === 'private') {
+      if (!cat.includes('private')) return false;
+    }
     else if (activeTab === 'secondary') {
       if (!cat.includes('secondary') && !cat.includes('junior')) return false;
     }
@@ -198,7 +202,13 @@ export default function Schools() {
           onClick={() => handleTabChange('primary')}
           className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'primary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
-          Primary & Private
+          Public Primary
+        </button>
+        <button
+          onClick={() => handleTabChange('private')}
+          className={`px-6 py-3 font-bold text-sm border-b-2 transition-colors whitespace-nowrap ${activeTab === 'private' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+        >
+          Private Schools
         </button>
         <button
           onClick={() => handleTabChange('secondary')}
