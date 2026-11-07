@@ -62,6 +62,17 @@ router.patch("/:id/status", requireAuth, async (req, res) => {
   }
 });
 
+
+router.get("/stats/dashboard", requireAuth, async (req, res) => {
+  try {
+    const collectionsCount = await Collection.countDocuments();
+    const submissionsCount = await Submission.countDocuments();
+    res.json({ collectionsCount, submissionsCount });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // 5. Update an existing Collection 
 router.put("/:id", requireAuth, async (req, res) => {
   try {
