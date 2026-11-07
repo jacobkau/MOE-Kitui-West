@@ -7,34 +7,67 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// 1. Update a single school (Handles all new fields)
-router.put("/:id", requireAuth, async (req, res) => {
+// ==========================================
+// IMPORTANT: SPECIAL ROUTES MUST BE AT THE TOP
+// ==========================================
+
+// 1. Get School Statistics for Dashboard
+router.get("/stats/dashboard", requireAuth, async (req, res) => {
   try {
-    const { 
-      name, code, category, zone, 
-      upnCode, county, subCounty, principalName, principalPhone 
-    } = req.body;
-    
-    const school = await School.findByIdAndUpdate(
-      req.params.id,
-      { name, code, category, zone, upnCode, county, subCounty, principalName, principalPhone },
-      { new: true }
-    );
-    res.json(school);
+    const totalSchools = await School.countDocuments();
+
+    // Aggregate counts by category
+    const categories = await School.aggregate([
+      { $group: { _id: "$category", count: { $sum: 1 } } }
+    ]);
+
+    // Format categories into an easy object
+    const stats = {
+      totalSchools,
+      public_primary: 0,
+      private_primary: 0,
+      secondary: 0,
+      special: 0,
+      other: 0
+    };
+
+    categories.forEach(cat => {
+      const catName = (cat._id || "").toLowerCase();
+      if (catName.includes("public")) stats.public_primary += cat.count;
+      else if (catName.includes("private")) stats.private_primary += cat.count;
+      else if (catName.includes("secondary") || catName.includes("junior")) stats.secondary += cat.count;
+      else if (catName.includes("special")) stats.special += cat.count;
+      else stats.other += cat.count;
+    });
+
+    res.json(stats);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// 2. Delete a school
-router.delete("/:id", requireAuth, async (req, res) => {
+// 2. Delete All Schools (Danger Zone)
+router.delete("/delete-all", requireAuth, async (req, res) => {
   try {
-    await School.findByIdAndDelete(req.params.id);
-    res.json({ message: "School deleted" });
+    const { category } = req.query;
+    let query = {};
+
+    if (category === 'primary') {
+      query = { category: { $in: ['public_primary', 'private_primary'] } };
+    } else if (category === 'secondary') {
+      query = { category: { $in: ['secondary', 'junior_secondary'] } };
+    }
+
+    await School.deleteMany(query);
+    res.json({ message: "Schools deleted successfully." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
+
+// ==========================================
+// REGULAR ROUTES
+// ==========================================
 
 // 3. Public list for dropdowns
 router.get("/public-list", async (req, res) => {
@@ -52,7 +85,7 @@ router.get("/public-list", async (req, res) => {
 router.get("/", requireAuth, async (req, res) => {
   const { category, zone, search } = req.query;
   let query = {};
-  
+
   if (category && category !== "all") query.category = category;
   if (zone && zone !== "all") query.zone = zone;
   if (search) {
@@ -92,7 +125,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
 
     data.forEach((row, index) => {
       const rowNum = index + 2;
-      
+
       const getVal = (keys) => {
         for (let k of keys) {
           if (row[k] !== undefined && row[k] !== null) return String(row[k]).trim();
@@ -107,7 +140,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
       const name = getVal(["name", "Name", "NAME", "School Name", "SCHOOL NAME"]);
       const category = getVal(["category", "Category", "CATEGORY"]).toLowerCase().replace(" ", "_"); 
       const zone = getVal(["zone", "Zone", "ZONE"]);
-      
+
       const upnCode = getVal(["upnCode", "UPN Code", "UPN", "upn"]);
       const county = getVal(["county", "County", "COUNTY"]) || "Kitui";
       const subCounty = getVal(["subCounty", "Sub County", "SubCounty"]) || "Kitui West";
@@ -144,6 +177,7 @@ router.post("/upload-preview", requireAuth, upload.single("file"), async (req, r
   }
 });
 
+// 7. Confirm Import
 router.post("/import", requireAuth, async (req, res) => {
   const { schools } = req.body;
   if (!Array.isArray(schools) || schools.length === 0) {
@@ -169,55 +203,34 @@ router.post("/import", requireAuth, async (req, res) => {
   }
 });
 
+// ==========================================
+// DYNAMIC ROUTES (MUST BE AT THE BOTTOM)
+// ==========================================
 
-// 8. Get School Statistics for Dashboard
-router.get("/stats/dashboard", requireAuth, async (req, res) => {
+// 8. Update a single school (Handles all new fields)
+router.put("/:id", requireAuth, async (req, res) => {
   try {
-    const totalSchools = await School.countDocuments();
-    
-    // Aggregate counts by category
-    const categories = await School.aggregate([
-      { $group: { _id: "$category", count: { $sum: 1 } } }
-    ]);
+    const { 
+      name, code, category, zone, 
+      upnCode, county, subCounty, principalName, principalPhone 
+    } = req.body;
 
-    // Format categories into an easy object
-    const stats = {
-      totalSchools,
-      public_primary: 0,
-      private_primary: 0,
-      secondary: 0,
-      special: 0,
-      other: 0
-    };
-
-    categories.forEach(cat => {
-      const catName = cat._id.toLowerCase();
-      if (catName.includes("public")) stats.public_primary += cat.count;
-      else if (catName.includes("private")) stats.private_primary += cat.count;
-      else if (catName.includes("secondary") || catName.includes("junior")) stats.secondary += cat.count;
-      else if (catName.includes("special")) stats.special += cat.count;
-      else stats.other += cat.count;
-    });
-
-    res.json(stats);
+    const school = await School.findByIdAndUpdate(
+      req.params.id,
+      { name, code, category, zone, upnCode, county, subCounty, principalName, principalPhone },
+      { new: true }
+    );
+    res.json(school);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.delete("/delete-all", requireAuth, async (req, res) => {
+// 9. Delete a single school
+router.delete("/:id", requireAuth, async (req, res) => {
   try {
-    const { category } = req.query;
-    let query = {};
-    
-    if (category === 'primary') {
-      query = { category: { $in: ['public_primary', 'private_primary'] } };
-    } else if (category === 'secondary') {
-      query = { category: { $in: ['secondary', 'junior_secondary'] } };
-    }
-
-    await School.deleteMany(query);
-    res.json({ message: "Schools deleted successfully." });
+    await School.findByIdAndDelete(req.params.id);
+    res.json({ message: "School deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
