@@ -53,7 +53,6 @@ moe-kitui-west/
 │   ├── middleware/         # Auth guards
 │   ├── models/             # Mongoose schemas (School, User, Collection, Submission)
 │   ├── routes/             # API endpoints (auth, schools, collections, submissions, exports)
-│   ├── seed/               # Initial database seeding scripts
 │   ├── index.js            # Server entry point
 │   └── package.json
 └── client/                 # Frontend React Application
@@ -148,4 +147,4 @@ Frontend (Vercel)
 
 Author
 
-Developed by Jacob Kau for the Ministry of Education, Kitui West Sub-County.
+Developed by [Jacob Mwambwa](https://jacob-mwambwa-portfolio.vercel.app) for the Ministry of Education, Kitui West Sub-County.
