@@ -27,16 +27,35 @@ export default function Dashboard() {
         setLoading(false);
       }
     };
+
+    // Fetch immediately on load
     fetchDashboardData();
+
+    // LIVE UPDATE: Fetch every 8 seconds
+    const intervalId = setInterval(fetchDashboardData, 8000);
+
+    // Cleanup interval when user leaves the page
+    return () => clearInterval(intervalId);
   }, []);
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading dashboard data...</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
-        <p className="text-gray-500 mt-1 text-sm">Overview of schools, data collections, and submissions in Kitui West Sub-County.</p>
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">Admin Dashboard</h2>
+          <p className="text-gray-500 mt-1 text-sm">Overview of schools, data collections, and submissions in Kitui West Sub-County.</p>
+        </div>
+        
+        {/* Live Indicator */}
+        <span className="flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-green-200">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          LIVE
+        </span>
       </div>
 
       {/* TOP STATS GRID */}
@@ -46,7 +65,7 @@ export default function Dashboard() {
           <p className="text-3xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{stats?.totalSchools || 0}</p>
           <span className="text-xs text-blue-600 mt-2 inline-block">View All Registry →</span>
         </Link>
-        
+
         <Link to="/collections" className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 border-l-4 border-l-green-500 hover:shadow-md transition-shadow block group">
           <p className="text-sm text-gray-500 font-medium mb-1">Data Collections</p>
           <p className="text-3xl font-bold text-gray-800 group-hover:text-green-600 transition-colors">{collectionsCount}</p>
@@ -69,7 +88,7 @@ export default function Dashboard() {
       {/* CATEGORIES BREAKDOWN */}
       <h3 className="text-lg font-bold text-gray-800 mb-4">School Categories Breakdown</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        
+
         {/* Public Primary Link */}
         <Link to="/schools?tab=primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-400 hover:shadow-md transition-all group">
           <div>
@@ -78,7 +97,7 @@ export default function Dashboard() {
           </div>
           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg group-hover:bg-blue-100">P</div>
         </Link>
-        
+
         {/* Private Primary Link */}
         <Link to="/schools?tab=private" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-green-400 hover:shadow-md transition-all group">
           <div>
