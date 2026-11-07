@@ -11,18 +11,16 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const schoolRes = await api.get('/schools/stats/dashboard');
+        // Fetch everything in parallel to save time
+        const [schoolRes, dashStatsRes] = await Promise.all([
+          api.get('/schools/stats/dashboard'),
+          api.get('/collections/stats/dashboard')
+        ]);
+
         setStats(schoolRes.data);
+        setCollectionsCount(dashStatsRes.data.collectionsCount);
+        setSubmissionsCount(dashStatsRes.data.submissionsCount);
 
-        const colRes = await api.get('/collections');
-        setCollectionsCount(colRes.data.length);
-
-        let totalSubs = 0;
-        for (const col of colRes.data) {
-          const subRes = await api.get(`/submissions/collection/${col._id}`);
-          totalSubs += subRes.data.length;
-        }
-        setSubmissionsCount(totalSubs);
       } catch (err) {
         console.error("Dashboard error:", err);
       } finally {
@@ -68,11 +66,9 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* CATEGORIES BREAKDOWN (NOW CLICKABLE) */}
+      {/* CATEGORIES BREAKDOWN */}
       <h3 className="text-lg font-bold text-gray-800 mb-4">School Categories Breakdown</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        
-        {/* Public Primary Link */}
         <Link to="/schools?category=public_primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-blue-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-blue-600">Public Primary</p>
@@ -81,7 +77,6 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-lg group-hover:bg-blue-100">P</div>
         </Link>
         
-        {/* Private Primary Link */}
         <Link to="/schools?category=private_primary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-green-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-green-600">Private Primary</p>
@@ -90,7 +85,6 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-lg group-hover:bg-green-100">Pv</div>
         </Link>
 
-        {/* Secondary Link */}
         <Link to="/schools?category=secondary" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-purple-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-purple-600">Secondary Schools</p>
@@ -99,7 +93,6 @@ export default function Dashboard() {
           <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-lg group-hover:bg-purple-100">S</div>
         </Link>
 
-        {/* Special Link */}
         <Link to="/schools?category=special" className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center hover:border-orange-400 hover:shadow-md transition-all group">
           <div>
             <p className="text-sm text-gray-500 group-hover:text-orange-500">Special Schools</p>
