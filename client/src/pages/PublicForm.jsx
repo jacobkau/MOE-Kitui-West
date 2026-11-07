@@ -7,7 +7,7 @@ export default function PublicForm() {
   const [collection, setCollection] = useState(null);
   const [schools, setSchools] = useState([]);
   const [selectedSchool, setSelectedSchool] = useState('');
-  
+
   // Searchable Dropdown State
   const [schoolSearch, setSchoolSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -26,16 +26,10 @@ export default function PublicForm() {
       try {
         const formRes = await api.get(`/collections/public/${slug}`);
         setCollection(formRes.data);
-        
+
         if (schools.length === 0) {
           const schoolsRes = await api.get('/schools/public-list');
           setSchools(schoolsRes.data);
-          
-          // 🔍 DEBUG LOGS
-          console.log("=== FORM TARGET CATEGORY ===");
-          console.log(formRes.data.targetCategory);
-          console.log("=== FIRST 5 SCHOOLS FROM DB ===");
-          console.log(schoolsRes.data.slice(0, 5).map(s => ({ name: s.name, category: s.category })));
         }
       } catch (err) {
         setMessage({ type: 'error', text: err.response?.data?.message || 'This form is no longer available.' });
@@ -68,7 +62,7 @@ export default function PublicForm() {
     setSelectedSchool(school._id);
     setSchoolSearch(`${school.name} (${school.code})`);
     setIsDropdownOpen(false);
-    
+
     try {
       const checkRes = await api.get(`/submissions/check/${collection._id}/${school._id}`);
       if (checkRes.data.exists) {
@@ -129,7 +123,7 @@ export default function PublicForm() {
   if (!collection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full">
+        <div className="bg-white p-8 rounded-lg shadow-lg text-center max-w-md w-full border-t-4 border-red-500">
           <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">!</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Form Unavailable</h1>
           <p className="text-gray-600">{message.text || 'This form has been closed by the Sub-County office.'}</p>
@@ -166,9 +160,6 @@ export default function PublicForm() {
     const search = schoolSearch.toLowerCase().trim();
     const target = collection.targetCategory || "all";
 
-    // 🔍 LIVE FILTER DEBUG LOG (This prints for every school checked)
-    // console.log(`Checking: ${name} | Cat: ${cat} | Target: ${target}`);
-
     if (search !== "") {
       if (!name.includes(search) && !code.includes(search)) {
         return false; 
@@ -193,31 +184,31 @@ export default function PublicForm() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
+    <div className="min-h-screen bg-gray-100 py-8 px-4 font-sans">
       <div className="max-w-3xl mx-auto">
         
-        <div className="bg-blue-900 rounded-t-xl p-6 md:p-8 text-white shadow-md relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-blue-200 text-sm font-bold tracking-wider mb-2 uppercase">Ministry of Education - Kitui West</p>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">{collection.name}</h1>
-            <p className="text-blue-100 font-medium">Term: {collection.term}</p>
-          </div>
+        {/* Compact Professional Header */}
+        <div className="bg-white border-t-4 border-blue-900 rounded-t-lg shadow-sm px-6 py-4 mb-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Ministry of Education - Kitui West</p>
+          <h1 className="text-xl font-bold text-gray-900">{collection.name}</h1>
+          <p className="text-sm text-gray-600 mt-1">Term: {collection.term}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-gray-100 p-4 md:p-8 border-x border-b border-gray-200 rounded-b-xl shadow-sm">
+        <form onSubmit={handleSubmit} className="bg-white p-6 md:p-8 rounded-b-lg shadow-sm border border-t-0 border-gray-200">
           
           {message.text && (
-            <div className={`p-4 mb-6 rounded-md border-l-4 ${message.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
+            <div className={`p-4 mb-6 rounded-md border-l-4 text-sm ${message.type === 'error' ? 'bg-red-50 text-red-700 border-red-500' : 'bg-green-50 text-green-700 border-green-500'}`}>
               {message.text}
             </div>
           )}
 
-          <div className="mb-8 bg-white p-5 rounded-lg shadow-sm border-l-4 border-blue-500 relative" ref={dropdownRef}>
-            <label className="block text-gray-800 font-bold mb-2">Search and Select Your School <span className="text-red-500">*</span></label>
+          {/* School Selection */}
+          <div className="mb-8 relative" ref={dropdownRef}>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Select Your School <span className="text-red-500">*</span></label>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Click to view schools or type to search..."
+                placeholder="Search by school name or code..."
                 value={schoolSearch}
                 onChange={(e) => {
                   setSchoolSearch(e.target.value);
@@ -226,84 +217,109 @@ export default function PublicForm() {
                   setExistingData(false);
                 }}
                 onFocus={() => setIsDropdownOpen(true)}
-                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 bg-gray-50 pr-10 text-lg font-medium"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 text-gray-900"
                 autoComplete="off" 
                 required={!selectedSchool} 
               />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
             </div>
+            
             {isDropdownOpen && (
               <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
                 {filteredSchools.length > 0 ? (
                   filteredSchools.map(s => (
-                    <div key={s._id} onClick={() => handleSelectSchool(s)} className="p-3 border-b cursor-pointer hover:bg-blue-50">
-                      <div className="font-bold text-gray-800">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.code} • {s.zone} Zone</div>
+                    <div key={s._id} onClick={() => handleSelectSchool(s)} className="p-3 border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors">
+                      <div className="font-bold text-gray-800 text-sm">{s.name}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{s.code} • {s.zone} Zone</div>
                     </div>
                   ))
                 ) : (
-                  <div className="p-4 text-center text-red-500">
-                    No schools found matching your search. <br/>
-                    <span className="text-xs">(Debug: Target is {collection.targetCategory})</span>
+                  <div className="p-4 text-center text-gray-500 text-sm">
+                    No schools found matching "{schoolSearch}".
                   </div>
                 )}
               </div>
             )}
             {selectedSchool && (
-              <div className="mt-2">
-                <p className="text-sm text-green-600 font-bold flex items-center gap-1">✓ Selected Successfully</p>
+              <div className="mt-3">
+                <p className="text-sm text-green-700 font-medium flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                  School Selected
+                </p>
                 {existingData && (
-                  <p className="text-sm text-yellow-700 bg-yellow-100 p-2 rounded mt-2 font-medium">
-                    ⚠️ Pre-filled with previous submission. Submitting again will overwrite it.
-                  </p>
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded-md mt-3 text-sm">
+                    <strong>Note:</strong> You have previously submitted data for this form. Submitting again will overwrite your previous entry.
+                  </div>
                 )}
               </div>
             )}
           </div>
 
-          <div className="space-y-6">
+          {/* Form Fields */}
+          <div className="space-y-8">
             {Object.entries(groupedFields).map(([groupName, fields]) => {
               const numberFields = fields.filter(f => f.type === 'number');
               const groupTotal = numberFields.reduce((sum, f) => sum + (Number(answers[f.key]) || 0), 0);
 
               return (
-                <div key={groupName} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="bg-blue-50 px-5 py-3 border-b border-gray-200">
-                    <h2 className="text-lg font-bold text-blue-900">{groupName}</h2>
-                  </div>
-                  <div className="p-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
-                      {fields.map((field) => (
-                        <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">
-                            {field.label} {field.required && <span className="text-red-500">*</span>}
-                          </label>
-                          {field.type === 'textarea' ? (
-                            <textarea required={field.required} value={answers[field.key] || ''} onChange={(e) => handleInputChange(field.key, e.target.value)} className="w-full p-2 border rounded-md" rows="2" />
-                          ) : (
-                            <input type={field.type === 'number' ? 'number' : 'text'} required={field.required} value={answers[field.key] || ''} onChange={(e) => handleInputChange(field.key, e.target.value)} className="w-full p-2 border rounded-md" placeholder={field.type === 'number' ? '0' : ''} />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {numberFields.length > 0 && (
-                      <div className="flex justify-end pt-3 border-t border-gray-100">
-                        <span className="bg-blue-100 text-blue-800 text-sm font-bold px-4 py-1.5 rounded-full">
-                          Auto-Calculated Total: {groupTotal}
-                        </span>
+                <div key={groupName} className="border-t border-gray-200 pt-6">
+                  <h2 className="text-lg font-bold text-gray-800 mb-4">{groupName}</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {fields.map((field) => (
+                      <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {field.label} {field.required && <span className="text-red-500">*</span>}
+                        </label>
+                        {field.type === 'textarea' ? (
+                          <textarea 
+                            required={field.required} 
+                            value={answers[field.key] || ''} 
+                            onChange={(e) => handleInputChange(field.key, e.target.value)} 
+                            className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" 
+                            rows="2" 
+                          />
+                        ) : (
+                          <input 
+                            type={field.type === 'number' ? 'number' : 'text'} 
+                            required={field.required} 
+                            value={answers[field.key] || ''} 
+                            onChange={(e) => handleInputChange(field.key, e.target.value)} 
+                            className="w-full p-2.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" 
+                            placeholder={field.type === 'number' ? '0' : ''} 
+                          />
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
+                  {numberFields.length > 0 && (
+                    <div className="flex justify-end mt-4">
+                      <span className="bg-blue-50 text-blue-800 text-sm font-bold px-4 py-2 rounded-md border border-blue-100">
+                        Section Total: {groupTotal}
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-300 flex justify-end">
-            <button type="submit" disabled={submitting} className="w-full md:w-auto bg-blue-600 text-white px-10 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-bold text-lg shadow-md">
-              {submitting ? 'Submitting...' : (existingData ? 'Update Data' : 'Submit Data')}
+          {/* Submit Button */}
+          <div className="mt-10 pt-6 border-t border-gray-200 flex justify-end">
+            <button 
+              type="submit" 
+              disabled={submitting} 
+              className="w-full md:w-auto bg-blue-900 text-white px-10 py-3 rounded-md hover:bg-blue-800 disabled:opacity-50 font-bold text-md shadow-sm transition-colors"
+            >
+              {submitting ? 'Submitting...' : (existingData ? 'Update Existing Data' : 'Submit Data')}
             </button>
           </div>
         </form>
+        
+        <div className="text-center mt-6 text-xs text-gray-500">
+          Powered by Kitui West Sub-County Data Portal
+        </div>
       </div>
     </div>
   );
