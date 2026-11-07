@@ -185,7 +185,7 @@ export default function Schools() {
             Delete All {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
           </button>
           <button onClick={() => setShowImport(!showImport)} className="bg-white border border-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-50 font-medium">
-            {showImport ? 'Hide Import' : '📄 Import Excel'}
+            {showImport ? 'Cancel Import' : '📄 Import Excel'}
           </button>
           <button onClick={openAddModal} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 font-medium">
             + Add School
